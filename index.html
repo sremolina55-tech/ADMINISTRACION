@@ -199,6 +199,22 @@ td{padding:11px 14px;font-size:13px;}
 .login-error.show{display:block;}
 .user-info-badge{background:rgba(255,255,255,0.2);border-radius:20px;padding:4px 12px;font-size:12px;color:#fff;font-weight:500;}
 .btn-logout-top{background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer;font-family:var(--sans);}
+.monitor-local{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;}
+.monitor-header{padding:16px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
+.monitor-title{font-family:'Playfair Display',serif;font-size:18px;font-weight:500;}
+.monitor-chips{display:flex;gap:8px;flex-wrap:wrap;}
+.monitor-chip{font-size:11px;padding:4px 10px;border-radius:20px;font-weight:600;}
+.monitor-chip.green{background:var(--green-dim);color:var(--green);}
+.monitor-chip.red{background:var(--red-dim);color:var(--red);}
+.monitor-chip.amber{background:var(--amber-dim);color:var(--amber);}
+.monitor-chip.gray{background:var(--bg3);color:var(--text3);}
+.monitor-pendientes{padding:0 18px 14px;}
+.monitor-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.1s;}
+.monitor-row:last-child{border-bottom:none;}
+.monitor-row:hover{background:var(--bg3);}
+.monitor-consec{font-family:'Playfair Display',serif;font-size:14px;color:var(--rosa);min-width:140px;}
+.monitor-cliente{font-size:13px;color:var(--text);flex:1;}
+.monitor-rep{font-size:12px;color:var(--text3);}
 </style>
 </head>
 <body>
@@ -230,6 +246,7 @@ td{padding:11px 14px;font-size:13px;}
     <div class="nav-section">Gesti&#243;n</div>
     <div class="nav-item active" onclick="showPage('dashboard',this)">&#9672; Dashboard</div>
     <div class="nav-item" onclick="showPage('buscar',this)">&#8857; Buscar factura</div>
+    <div class="nav-item" onclick="showPage('monitor',this)">&#128204; Monitor locales <span class="nav-badge" id="badge-monitor" style="display:none">0</span></div>
     <div class="nav-item" onclick="showPage('novedades',this)">&#9889; Novedades <span class="nav-badge" id="badge-novedades" style="display:none">0</span></div>
     <div class="nav-item" onclick="showPage('consecutivos',this)">&#8801; Consecutivos</div>
     <div class="nav-section" style="margin-top:4px">Accesos</div>
@@ -296,12 +313,10 @@ td{padding:11px 14px;font-size:13px;}
         </div>
         <select id="estado-filter" onchange="filterTable(document.getElementById('main-search').value)"
           style="background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:9px 12px;color:var(--text);font-family:var(--sans);font-size:13px;outline:none;cursor:pointer;">
-          <option value="">Todos los estados</option>
-          <option value="pendiente">Pendiente</option>
-          <option value="entregada">Entregada</option>
-          <option value="con_novedad">Con novedad</option>
-          <option value="cartera">Cartera</option>
-          <option value="devuelta">Devuelta</option>
+          <option value="">Todos</option>
+          <option value="pendiente">&#9200; Pendientes</option>
+          <option value="no_pendiente">&#9989; No pendientes</option>
+          <option value="con_novedad">&#9889; Con novedad</option>
         </select>
         <div id="search-count" style="font-size:13px;color:var(--text3);white-space:nowrap;"></div>
       </div>
@@ -362,6 +377,18 @@ td{padding:11px 14px;font-size:13px;}
           <button class="btn btn-ghost" style="margin-top:16px" onclick="resetUpload()">Cargar otro archivo</button>
         </div>
       </div>
+    </div>
+
+    <!-- MONITOR -->
+    <div class="page" id="page-monitor">
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
+        <input type="date" id="monitor-date-filter" onchange="renderMonitor()"
+          style="background:var(--bg2);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:9px 12px;color:var(--text);font-family:var(--sans);font-size:13px;outline:none;cursor:pointer;">
+        <button class="btn btn-ghost" style="font-size:12px" onclick="document.getElementById('monitor-date-filter').value='';renderMonitor()">Todas las fechas</button>
+        <span id="monitor-fecha-label" style="font-size:13px;color:var(--text3)"></span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:24px" id="monitor-stats"></div>
+      <div id="monitor-locales"></div>
     </div>
 
     <!-- CONSECUTIVOS -->
@@ -500,9 +527,8 @@ td{padding:11px 14px;font-size:13px;}
 const SUPABASE_URL='https://pqcgibsdewrrbukibubd.supabase.co';
 const SUPABASE_KEY='sb_publishable_M2_2LzTgPvj2s38Lq64Bzg_qrnJ-e1q';
 const H={'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation'};
-const HG={'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY};
 
-async function sbGet(t,p){const r=await fetch(SUPABASE_URL+'/rest/v1/'+t+'?'+p+'&t='+Date.now(),{headers:HG});return r.ok?await r.json():null;}
+async function sbGet(t,p){const r=await fetch(SUPABASE_URL+'/rest/v1/'+t+'?'+p,{headers:H});return r.ok?await r.json():null;}
 async function sbPost(t,b){const r=await fetch(SUPABASE_URL+'/rest/v1/'+t,{method:'POST',headers:H,body:JSON.stringify(b)});const tx=await r.text();try{return{data:JSON.parse(tx),error:r.ok?null:tx};}catch(e){return{data:null,error:tx};}}
 async function sbPatch(t,f,b){await fetch(SUPABASE_URL+'/rest/v1/'+t+'?'+f,{method:'PATCH',headers:H,body:JSON.stringify(b)});}
 
@@ -513,17 +539,25 @@ async function doLogin(){
   const pass=document.getElementById('login-pass').value.trim();
   if(!user||!pass)return;
   showLoading(true);
-  const data=await sbGet('usuarios','usuario=eq.'+encodeURIComponent(user)+'&password=eq.'+encodeURIComponent(pass)+'&activo=eq.true&rol=eq.admin&select=id,usuario,nombre,punto,rol');
-  showLoading(false);
-  if(!data||!data.length){
-    document.getElementById('login-error').classList.add('show');
-    document.getElementById('login-pass').value='';
-    return;
+  try{
+    const data=await sbGet('usuarios','usuario=eq.'+encodeURIComponent(user)+'&password=eq.'+encodeURIComponent(pass)+'&activo=eq.true&rol=eq.admin&select=id,usuario,nombre,punto,rol');
+    showLoading(false);
+    if(!data||!data.length){
+      document.getElementById('login-error').textContent='Usuario o contrase\u00f1a incorrectos.';
+      document.getElementById('login-error').classList.add('show');
+      document.getElementById('login-pass').value='';
+      return;
+    }
+    const u=data[0];
+    sesionAdmin={id:u.id,usuario:u.usuario,nombre:u.nombre};
+    sessionStorage.setItem('lom_admin_sesion',JSON.stringify(sesionAdmin));
+    document.getElementById('login-error').classList.remove('show');
+    mostrarAdmin();
+  }catch(e){
+    showLoading(false);
+    showToast('Error de conexion: '+e.message);
+    console.error(e);
   }
-  const u=data[0];
-  sesionAdmin={id:u.id,usuario:u.usuario,nombre:u.nombre};
-  sessionStorage.setItem('lom_admin_sesion',JSON.stringify(sesionAdmin));
-  mostrarAdmin();
 }
 
 function mostrarAdmin(){
@@ -543,16 +577,31 @@ window.addEventListener('load',()=>{
   if(s){try{sesionAdmin=JSON.parse(s);mostrarAdmin();}catch(e){}}
 });
 
+async function recargarActual(){
+  const fechaEl=document.getElementById('date-filter');
+  const fecha=fechaEl?fechaEl.value:'';
+  const btnTodas=document.getElementById('btn-todas');
+  const esTodas=btnTodas&&btnTodas.className.includes('btn-primary');
+  if(esTodas){
+    await loadDataAll();
+  } else if(fecha){
+    const facturas=await sbGet('facturas','select=id,consecutivo,fecha,estado,kg_facturados,kg_facturados_original,precio_unitario,clientes(nombre),repartidores(nombre)&fecha=eq.'+fecha+'&order=consecutivo');
+    await cargarEntregasYNovedades(facturas||[]);
+  } else {
+    await loadData();
+  }
+}
+
 async function loadData(){
   showLoading(true);
   const desde = getDateDaysAgo(7);
-  const facturas = await sbGet('facturas','select=id,consecutivo,fecha,estado,kg_facturados,precio_unitario,clientes(nombre),repartidores(nombre)&fecha=gte.'+desde+'&order=consecutivo');
+  const facturas = await sbGet('facturas','select=id,consecutivo,fecha,estado,kg_facturados,kg_facturados_original,precio_unitario,clientes(nombre),repartidores(nombre)&fecha=gte.'+desde+'&order=consecutivo');
   await cargarEntregasYNovedades(facturas||[]);
 }
 
 async function loadDataAll(){
   showLoading(true);
-  const facturas = await sbGet('facturas','select=id,consecutivo,fecha,estado,kg_facturados,precio_unitario,clientes(nombre),repartidores(nombre)&order=consecutivo');
+  const facturas = await sbGet('facturas','select=id,consecutivo,fecha,estado,kg_facturados,kg_facturados_original,precio_unitario,clientes(nombre),repartidores(nombre)&order=consecutivo');
   await cargarEntregasYNovedades(facturas||[]);
 }
 
@@ -594,7 +643,7 @@ function buildData(facturas, entregas, novedades, notas){
       consecutivo:f.consecutivo,fecha:f.fecha,
       hora:e.registrado_en?new Date(e.registrado_en).toTimeString().slice(0,5):null,
       cliente:f.clientes?.nombre||'-',repartidor:f.repartidores?.nombre||'-',
-      kgFac:f.kg_facturados,kgRec:e.kg_recibidos??null,precio:f.precio_unitario,
+      kgFac:f.kg_facturados,kgFacOriginal:f.kg_facturados_original||null,kgRec:e.kg_recibidos??null,precio:f.precio_unitario,
       metodo:e.metodo_pago||null,
       fotoFactura:e.foto_url||null,fotoComprobante:e.foto_comprobante_url||null,
       montoEfectivo:e.monto_efectivo||null,montoTransf:e.monto_transferencia||null,montoCartera:e.monto_cartera||null,
@@ -609,6 +658,7 @@ function buildData(facturas, entregas, novedades, notas){
   renderRecentTable(DATA);
   renderAllTable(DATA);
   updateStats();
+  renderMonitor_update();
 }
 
 function fmtCOP(n){return n==null?'-':'$'+Math.round(n).toLocaleString('es-CO');}
@@ -637,36 +687,46 @@ function estadoBadge(r){
 }
 
 function renderRecentTable(rows){
-  const tbody=document.getElementById('table-recent');
-  const sl=rows.slice(-15).reverse();
-  if(!sl.length){tbody.innerHTML='<tr><td colspan="8"><div class="empty"><div class="empty-icon">&#9672;</div><p>Sin facturas hoy</p></div></td></tr>';return;}
-  tbody.innerHTML=sl.map(r=>`<tr onclick="openModal(DATA[${r.idx}])">
-    <td style="color:var(--rosa);font-weight:500">${r.consecutivo}</td>
-    <td>${r.cliente}</td>
-    <td style="color:var(--text2)">${r.repartidor}</td>
-    <td>${fmtKg(r.kgFac)}</td>
-    <td style="color:${r.diff!==0&&r.kgRec?'var(--amber)':'inherit'}">${fmtKg(r.kgRec)}</td>
-    <td>${pagoLabel(r.metodo)}</td>
-    <td>${fotosIndicator(r)}</td>
-    <td>${estadoBadge(r)}</td>
-  </tr>`).join('');
+  var tbody=document.getElementById('table-recent');
+  var sl=rows.slice(-15).reverse();
+  if(!sl.length){tbody.innerHTML='<tr><td colspan="8"><div class="empty"><div class="empty-icon">&#9672;</div><p>Sin facturas</p></div></td></tr>';return;}
+  var html='';
+  sl.forEach(function(r){
+    var amberColor=r.diff!==0&&r.kgRec?'color:var(--amber)':'';
+    html+='<tr onclick="openModal(DATA['+r.idx+'])">';
+    html+='<td style="color:var(--rosa);font-weight:500">'+r.consecutivo+'</td>';
+    html+='<td>'+r.cliente+'</td>';
+    html+='<td style="color:var(--text2)">'+r.repartidor+'</td>';
+    html+='<td>'+fmtKg(r.kgFac)+'</td>';
+    html+='<td style="'+amberColor+'">'+fmtKg(r.kgRec)+'</td>';
+    html+='<td>'+pagoLabel(r.metodo)+'</td>';
+    html+='<td>'+fotosIndicator(r)+'</td>';
+    html+='<td>'+estadoBadge(r)+'</td>';
+    html+='</tr>';
+  });
+  tbody.innerHTML=html;
 }
 
 function renderAllTable(rows){
-  const tbody=document.getElementById('table-all');
+  var tbody=document.getElementById('table-all');
   if(!rows.length){tbody.innerHTML='<tr><td colspan="10"><div class="empty"><div class="empty-icon">&#8857;</div><p>No se encontraron facturas</p></div></td></tr>';return;}
-  tbody.innerHTML=rows.map(r=>`<tr onclick="openModal(DATA[${r.idx}])">
-    <td style="color:var(--rosa);font-weight:500">${r.consecutivo}</td>
-    <td style="font-size:12px;color:var(--text3)">${r.fecha}</td>
-    <td>${r.cliente}</td>
-    <td style="color:var(--text2);font-size:12px">${r.repartidor}</td>
-    <td>${fmtKg(r.kgFac)}</td>
-    <td style="color:${r.diff!==0&&r.kgRec?'var(--amber)':'inherit'}">${fmtKg(r.kgRec)}</td>
-    <td>${pagoLabel(r.metodo)}</td>
-    <td>${fotosIndicator(r)}</td>
-    <td style="font-size:11px;color:var(--text3)">${r.notaNum||'-'}</td>
-    <td>${estadoBadge(r)}</td>
-  </tr>`).join('');
+  var html='';
+  rows.forEach(function(r){
+    var amberColor=r.diff!==0&&r.kgRec?'color:var(--amber)':'';
+    html+='<tr onclick="openModal(DATA['+r.idx+'])">';
+    html+='<td style="color:var(--rosa);font-weight:500">'+r.consecutivo+'</td>';
+    html+='<td style="font-size:12px;color:var(--text3)">'+r.fecha+'</td>';
+    html+='<td>'+r.cliente+'</td>';
+    html+='<td style="color:var(--text2);font-size:12px">'+r.repartidor+'</td>';
+    html+='<td>'+fmtKg(r.kgFac)+'</td>';
+    html+='<td style="'+amberColor+'">'+fmtKg(r.kgRec)+'</td>';
+    html+='<td>'+pagoLabel(r.metodo)+'</td>';
+    html+='<td>'+fotosIndicator(r)+'</td>';
+    html+='<td style="font-size:11px;color:var(--text3)">'+(r.notaNum||'-')+'</td>';
+    html+='<td>'+estadoBadge(r)+'</td>';
+    html+='</tr>';
+  });
+  tbody.innerHTML=html;
 }
 
 function filterTable(q){
@@ -674,16 +734,15 @@ function filterTable(q){
   let rows=DATA;
   if(q&&q.trim()){
     const ql=q.trim().toLowerCase();
-    rows=rows.filter(r=>String(r.consecutivo).toLowerCase().includes(ql)||r.cliente.toLowerCase().includes(ql)||r.repartidor.toLowerCase().includes(ql));
+    rows=rows.filter(r=>
+      String(r.consecutivo).toLowerCase().includes(ql)||
+      r.cliente.toLowerCase().includes(ql)||
+      r.repartidor.toLowerCase().includes(ql)
+    );
   }
-  if(estado) rows=rows.filter(r=>{
-    if(estado==='pendiente') return !r.kgRec;
-    if(estado==='entregada') return r.kgRec&&!r.hasNovedad&&r.metodo!=='cartera';
-    if(estado==='con_novedad') return r.hasNovedad;
-    if(estado==='cartera') return r.metodo==='cartera';
-    if(estado==='devuelta') return r.metodo==='devolucion';
-    return true;
-  });
+  if(estado==='pendiente') rows=rows.filter(r=>r.kgRec==null&&r.metodo!=='devolucion');
+  else if(estado==='no_pendiente') rows=rows.filter(r=>r.kgRec!=null||r.metodo==='devolucion');
+  else if(estado==='con_novedad') rows=rows.filter(r=>r.hasNovedad);
   const countEl=document.getElementById('search-count');
   if(countEl) countEl.textContent=rows.length+' resultado'+(rows.length!==1?'s':'');
   VISTA_DATA=rows;
@@ -704,13 +763,34 @@ function updateStats(){
 
 function openModal(r){
   currentRow=r;
+  // Limpiar todos los formularios de edicion
+  ['m-edit-cantidad','m-edit-fac','m-edit-factura'].forEach(function(id){
+    const el=document.getElementById(id);
+    if(el) el.style.display='none';
+  });
+  const kgInp=document.getElementById('edit-kg-input');
+  const facInp=document.getElementById('edit-fac-input');
+  const facNumInp=document.getElementById('edit-factura-input');
+  if(kgInp) kgInp.value='';
+  if(facInp) facInp.value='';
+  if(facNumInp) facNumInp.value='';
+  // Limpiar nota
+  const notaNumInp=document.getElementById('nota-num-input');
+  const notaPdfInp=document.getElementById('nota-pdf-input');
+  const notaPdfLbl=document.getElementById('nota-pdf-label');
+  const notaPdfBtn=document.getElementById('nota-pdf-btn');
+  if(notaNumInp) notaNumInp.value='';
+  if(notaPdfInp) notaPdfInp.value='';
+  if(notaPdfLbl) notaPdfLbl.textContent='Seleccionar archivo PDF';
+  if(notaPdfBtn) notaPdfBtn.style.borderColor='';
+
   const mm={efectivo:'Efectivo',transferencia:'Transferencia',no_pago:'No pag&#243;',parcial:'Pago parcial'};
   document.getElementById('m-consec').textContent='#'+r.consecutivo;
   document.getElementById('m-date').textContent=r.fecha+(r.hora?' &#183; '+r.hora:'');
   document.getElementById('m-cliente').textContent=r.cliente;
   document.getElementById('m-origen').textContent=esPDV(r)?'&#127978; Punto de venta':'&#128757; Repartidor';
   document.getElementById('m-repartidor').textContent=r.repartidor;
-  document.getElementById('m-kg-fac').textContent=fmtKg(r.kgFac);
+  document.getElementById('m-kg-fac').textContent=fmtKg(r.kgFac)+(r.kgFacOriginal&&r.kgFacOriginal!==r.kgFac?' (original: '+fmtKg(r.kgFacOriginal)+')':'');
   const kre=document.getElementById('m-kg-rec');
   kre.textContent=fmtKg(r.kgRec);kre.className='detail-val'+(r.diff!==0&&r.kgRec?' amber':'');
   document.getElementById('m-metodo').textContent=r.metodo?(mm[r.metodo]||r.metodo):'-';
@@ -818,15 +898,37 @@ async function guardarCantidadFacEditada(){
   const nueva=parseFloat(document.getElementById('edit-fac-input').value.replace(',','.'));
   if(isNaN(nueva)||nueva<0){showToast('Ingresa una cantidad v\u00e1lida');return;}
   showLoading(true);
-  await sbPatch('facturas','id=eq.'+r.facturaId,{kg_facturados:nueva});
+  // Guardar valor original solo la primera vez
+  const updateData={kg_facturados:nueva};
+  if(!r.kgFacOriginal) updateData.kg_facturados_original=r.kgFac;
+  await sbPatch('facturas','id=eq.'+r.facturaId,updateData);
   if(r.entregaId){
     const obsEdit='\n[CANTIDAD FACTURADA EDITADA POR '+sesionAdmin.usuario+': '+r.kgFac+' \u2192 '+nueva+']';
     await sbPatch('entregas','id=eq.'+r.entregaId,{observaciones:(r.obs||'')+obsEdit});
+    // Recalcular novedad con la nueva cantidad facturada
+    if(r.kgRec!=null){
+      const diff=Math.round((r.kgRec-nueva)*10)/10;
+      if(Math.abs(diff)<=0.09){
+        if(r.novedadId) await fetch(SUPABASE_URL+'/rest/v1/novedades?id=eq.'+r.novedadId,{method:'DELETE',headers:H});
+        await sbPatch('facturas','id=eq.'+r.facturaId,{estado:'entregada'});
+        showToast('Cantidad facturada actualizada \u2014 novedad eliminada');
+      } else {
+        if(r.novedadId){
+          await sbPatch('novedades','id=eq.'+r.novedadId,{tipo:diff<0?'nota_credito':'nota_debito',diferencia:diff,valor_facturado:nueva,estado:'pendiente'});
+        }
+        await sbPatch('facturas','id=eq.'+r.facturaId,{estado:'con_novedad'});
+        showToast('Cantidad facturada actualizada a '+nueva);
+      }
+    } else {
+      showToast('Cantidad facturada actualizada a '+nueva);
+    }
+  } else {
+    showToast('Cantidad facturada actualizada a '+nueva);
   }
   showLoading(false);
   closeModalBtn();
-  await loadData();
-  showToast('Cantidad facturada actualizada a '+nueva);
+  await recargarActual();
+  renderMonitor_update();
 }
 
 function toggleEditCantidad(){
@@ -864,7 +966,7 @@ async function guardarFacturaEditada(){
   }
   showLoading(false);
   closeModalBtn();
-  await loadData();
+  await recargarActual();
   showToast('N\u00famero de factura actualizado a '+nuevo);
 }
 
@@ -915,12 +1017,15 @@ async function guardarCantidadEditada(){
 
   showLoading(false);
   closeModalBtn();
-  await loadData();
+  await recargarActual();
   showToast('Cantidad actualizada correctamente');
 }
 
 function closeModalOutside(e){if(e.target===document.getElementById('modal-overlay'))closeModalBtn();}
-function closeModalBtn(){document.getElementById('modal-overlay').classList.remove('open');}
+function closeModalBtn(){
+  document.getElementById('modal-overlay').classList.remove('open');
+  if(document.getElementById('page-monitor')?.classList.contains('active')) renderMonitor();
+}
 
 function onNotaPdfSelected(input){
   const file=input.files[0];
@@ -952,27 +1057,128 @@ async function generarNota(){
   if(error){showLoading(false);showToast('Error al guardar la nota');console.error(error);return;}
   await sbPatch('novedades','id=eq.'+r.novedadId,{estado:'generada'});
   showLoading(false);
-  await loadData();
+  await recargarActual();
   closeModalBtn();
   showToast('Nota '+num+' generada y guardada');
   renderNovedades();
 }
 
+function renderMonitor(){
+  const locales=[
+    {nombre:'Galan',prefijos:['2303'],color:'var(--rosa)'},
+    {nombre:'BLE',prefijos:['2304','2305'],color:'var(--blue)'},
+  ];
+  const fechaFilter=document.getElementById('monitor-date-filter')?.value||'';
+  // Para las estadísticas del monitor usar TODOS los datos cargados
+  const sourceData=fechaFilter?DATA.filter(function(r){return r.fecha===fechaFilter;}):DATA;
+  const label=document.getElementById('monitor-fecha-label');
+  if(label) label.textContent=fechaFilter?('Mostrando: '+fechaFilter):'Mostrando todas las fechas';
+
+  const statsEl=document.getElementById('monitor-stats');
+  const totalPend=sourceData.filter(function(r){return r.kgRec==null&&r.metodo!=='devolucion';}).length;
+  const totalNov=sourceData.filter(function(r){return r.hasNovedad&&r.notaEstado==='pendiente';}).length;
+  statsEl.innerHTML=
+    '<div class="stat-card rosa"><div class="stat-label">Total facturas</div><div class="stat-value">'+sourceData.length+'</div><div class="stat-meta">En el sistema</div></div>'+
+    '<div class="stat-card red"><div class="stat-label">Sin registrar</div><div class="stat-value" style="color:var(--red)">'+totalPend+'</div><div class="stat-meta">Pendientes de repartidor</div></div>'+
+    '<div class="stat-card amber"><div class="stat-label">Con novedad</div><div class="stat-value" style="color:var(--amber)">'+totalNov+'</div><div class="stat-meta">Requieren nota</div></div>';
+
+  const badge=document.getElementById('badge-monitor');
+  const totalPendAll=DATA.filter(function(r){return r.kgRec==null&&r.metodo!=='devolucion';}).length;
+  badge.textContent=totalPendAll;
+  badge.style.display=totalPendAll>0?'':'none';
+
+  const localesEl=document.getElementById('monitor-locales');
+  let html='';
+  locales.forEach(function(local){
+    const rows=sourceData.filter(function(r){return local.prefijos.some(function(p){return String(r.consecutivo).startsWith(p);});});
+    const pend=rows.filter(function(r){return r.kgRec==null&&r.metodo!=='devolucion';});
+    const entregadas=rows.filter(function(r){return r.kgRec!=null||r.metodo==='devolucion';});
+    const novedad=rows.filter(function(r){return r.hasNovedad&&r.notaEstado==='pendiente';});
+    const novChip=novedad.length>0?'<span class="monitor-chip amber">'+novedad.length+' novedad</span>':'';
+    html+='<div class="monitor-local">';
+    html+='<div class="monitor-header">';
+    html+='<div style="display:flex;align-items:center;gap:10px;">';
+    html+='<span style="width:10px;height:10px;border-radius:50%;background:'+local.color+';display:inline-block"></span>';
+    html+='<span class="monitor-title">'+local.nombre+'</span>';
+    html+='<span style="font-size:12px;color:var(--text3)">'+local.prefijos.join(', ')+'</span>';
+    html+='</div>';
+    html+='<div class="monitor-chips">';
+    html+='<span class="monitor-chip gray">'+rows.length+' total</span>';
+    html+='<span class="monitor-chip green">'+entregadas.length+' entregadas</span>';
+    html+='<span class="monitor-chip red">'+pend.length+' pendientes</span>';
+    html+=novChip;
+    html+='</div></div>';
+    if(pend.length){
+      html+='<div class="monitor-pendientes">';
+      html+='<div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);padding:10px 0 8px;font-weight:600">Pendientes de registro</div>';
+      pend.forEach(function(r){
+        html+='<div class="monitor-row" onclick="openModal(DATA['+r.idx+'])">';
+        html+='<span class="monitor-consec">#'+r.consecutivo+'</span>';
+        html+='<span style="font-size:11px;color:var(--text3);min-width:80px">'+r.fecha+'</span>';
+        html+='<span class="monitor-cliente">'+r.cliente+'</span>';
+        html+='<span class="monitor-rep">'+r.repartidor+'</span>';
+        html+='</div>';
+      });
+      html+='</div>';
+    } else {
+      html+='<div style="padding:16px 18px;font-size:13px;color:var(--green)">&#9989; Todas las facturas registradas</div>';
+    }
+    // Novedades pendientes de este local
+    if(novedad.length){
+      html+='<div style="background:var(--amber-dim);border-top:1px solid rgba(200,120,32,0.2);padding:0 18px 14px;">';
+      html+='<div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--amber);padding:10px 0 8px;font-weight:600">&#9889; Novedades pendientes de nota</div>';
+      novedad.forEach(function(r){
+        html+='<div class="monitor-row" onclick="openModal(DATA['+r.idx+'])">';
+        html+='<span class="monitor-consec" style="color:var(--amber)">#'+r.consecutivo+'</span>';
+        html+='<span style="font-size:11px;color:var(--text3);min-width:80px">'+r.fecha+'</span>';
+        html+='<span class="monitor-cliente">'+r.cliente+'</span>';
+        html+='<span class="monitor-rep" style="color:var(--amber)">'+(r.diff>0?'+':'')+r.diff+' uds</span>';
+        html+='</div>';
+      });
+      html+='</div>';
+    }
+    html+='</div>';
+  });
+  localesEl.innerHTML=html;
+}
+
+function renderMonitor_update(){
+  const totalPend=DATA.filter(r=>r.kgRec==null&&r.metodo!=='devolucion').length;
+  const badge=document.getElementById('badge-monitor');
+  if(badge){badge.textContent=totalPend;badge.style.display=totalPend>0?'':'none';}
+}
+
 function renderNovedades(){
   const list=document.getElementById('novedades-list');
-  const novedades=DATA.filter(r=>r.hasNovedad);
-  const pendientes=novedades.filter(r=>r.notaEstado==='pendiente');
-  const generadas=novedades.filter(r=>r.notaEstado==='generada');
+  const novedades=DATA.filter(function(r){return r.hasNovedad;});
+  const pendientes=novedades.filter(function(r){return r.notaEstado==='pendiente';});
+  const generadas=novedades.filter(function(r){return r.notaEstado==='generada';});
   let h='';
   if(pendientes.length){
-    h+=`<div class="section-header"><span class="section-title" style="color:var(--amber)">&#9889; Pendientes (${pendientes.length})</span></div>`;
-    pendientes.forEach(r=>{h+=`<div class="novedad-card" onclick="openModal(DATA[${r.idx}])"><div class="novedad-consec">#${r.consecutivo}</div><div class="novedad-info"><div class="novedad-desc">${r.cliente} &#183; ${r.diff<0?'Menos':'M&#225;s'} kg</div><div class="novedad-meta">${r.repartidor} &#183; Fac: ${r.kgFac}kg &#8594; Rec: ${r.kgRec}kg</div></div><div class="novedad-amount">${r.diff>0?'+':''}${r.diff}kg</div><button class="btn btn-green" onclick="event.stopPropagation();openModal(DATA[${r.idx}])">Ver y generar</button></div>`;});
+    h+='<div class="section-header"><span class="section-title" style="color:var(--amber)">&#9889; Pendientes ('+pendientes.length+')</span></div>';
+    pendientes.forEach(function(r){
+      h+='<div class="novedad-card" onclick="openModal(DATA['+r.idx+'])">';
+      h+='<div class="novedad-consec">#'+r.consecutivo+'</div>';
+      h+='<div class="novedad-info">';
+      h+='<div class="novedad-desc">'+r.cliente+' &#183; '+(r.diff<0?'Menos':'M&#225;s')+' unidades</div>';
+      h+='<div class="novedad-meta">'+r.repartidor+' &#183; Fac: '+r.kgFac+' &#8594; Rec: '+r.kgRec+'</div>';
+      h+='</div>';
+      h+='<div class="novedad-amount">'+(r.diff>0?'+':'')+r.diff+'</div>';
+      h+='<button class="btn btn-green" onclick="event.stopPropagation();openModal(DATA['+r.idx+'])">Ver y generar</button>';
+      h+='</div>';
+    });
   }
   if(generadas.length){
-    h+=`<div class="section-header" style="margin-top:20px"><span class="section-title" style="color:var(--text3)">&#10003; Generadas (${generadas.length})</span></div>`;
-    generadas.forEach(r=>{h+=`<div class="novedad-card" onclick="openModal(DATA[${r.idx}])" style="opacity:0.6;border-left-color:var(--green)"><div class="novedad-consec">#${r.consecutivo}</div><div class="novedad-info"><div class="novedad-desc">${r.cliente}</div><div class="novedad-meta">${r.notaNum}</div></div><span class="badge green">Generada</span></div>`;});
+    h+='<div class="section-header" style="margin-top:20px"><span class="section-title" style="color:var(--text3)">&#10003; Generadas ('+generadas.length+')</span></div>';
+    generadas.forEach(function(r){
+      h+='<div class="novedad-card" onclick="openModal(DATA['+r.idx+'])" style="opacity:0.6;border-left-color:var(--green)">';
+      h+='<div class="novedad-consec">#'+r.consecutivo+'</div>';
+      h+='<div class="novedad-info"><div class="novedad-desc">'+r.cliente+'</div><div class="novedad-meta">'+(r.notaNum||'-')+'</div></div>';
+      h+='<span class="badge green">Generada</span>';
+      h+='</div>';
+    });
   }
-  if(!novedades.length) h=`<div class="empty"><div class="empty-icon">&#10003;</div><p>Sin novedades pendientes</p></div>`;
+  if(!novedades.length) h='<div class="empty"><div class="empty-icon">&#10003;</div><p>Sin novedades pendientes</p></div>';
   list.innerHTML=h;
 }
 
@@ -997,7 +1203,7 @@ function openLightbox(url){
 }
 function closeLightbox(){document.getElementById('lightbox').classList.remove('open');}
 
-const PAGE_META={dashboard:['Dashboard','Resumen del d&#237;a'],buscar:['Buscar factura','Consulta por consecutivo'],novedades:['Novedades','Diferencias pendientes de gesti&#243;n'],consecutivos:['Control de consecutivos','Verificaci&#243;n diaria'],cargar:['Cargar rutero','Importar facturas desde Excel']};
+const PAGE_META={dashboard:['Dashboard','Resumen del d&#237;a'],buscar:['Buscar factura','Consulta por consecutivo'],monitor:['Monitor de locales','Pendientes por punto'],novedades:['Novedades','Diferencias pendientes de gesti&#243;n'],consecutivos:['Control de consecutivos','Verificaci&#243;n diaria'],cargar:['Cargar rutero','Importar facturas desde Excel']};
 function showPage(id,el){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -1008,6 +1214,7 @@ function showPage(id,el){
   document.getElementById('topbar-sub').innerHTML=meta[1];
   if(id==='novedades')renderNovedades();
   if(id==='consecutivos')renderConsecutivos();
+  if(id==='monitor')renderMonitor();
   if(id==='buscar')setTimeout(()=>document.getElementById('main-search').focus(),100);
 }
 
@@ -1025,6 +1232,9 @@ function filtroRapido_highlight(tipo){
   });
 }
 
+let origenActivo='todos';
+let fechaActiva='';
+
 function filtroRapido(tipo) {
   const today = new Date().toISOString().split('T')[0];
   const yesterday = new Date(Date.now()-86400000).toISOString().split('T')[0];
@@ -1032,9 +1242,9 @@ function filtroRapido(tipo) {
     const btn=document.getElementById('btn-'+t);
     if(btn) btn.className='btn '+(t===tipo?'btn-primary':'btn-ghost');
   });
-  if(tipo==='hoy'){ document.getElementById('date-filter').value=today; filterByDate(today); }
-  else if(tipo==='ayer'){ document.getElementById('date-filter').value=yesterday; filterByDate(yesterday); }
-  else { document.getElementById('date-filter').value=''; loadDataAll(); }
+  if(tipo==='hoy'){ fechaActiva=today; document.getElementById('date-filter').value=today; filterByDate(today); }
+  else if(tipo==='ayer'){ fechaActiva=yesterday; document.getElementById('date-filter').value=yesterday; filterByDate(yesterday); }
+  else { fechaActiva=''; document.getElementById('date-filter').value=''; loadDataAll(); }
 }
 
 function esPDV(r){ return r.repartidor==='PUNTO DE VENTA'||r.repartidor.indexOf('PDV-')===0; }
@@ -1108,7 +1318,8 @@ function exportarExcel() {
   showToast('Informe exportado correctamente');
 }
 
-function showLoading(v){document.getElementById('loading').classList.toggle('show',v);}
+function showLoading(v){document.getElementById('loading').classList.toggle('show',typeof v==='boolean'?v:true);}
+function hideLoading(){document.getElementById('loading').classList.remove('show');}
 let toastTimer;
 function showToast(msg){const t=document.getElementById('toast');document.getElementById('toast-msg').textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3500);}
 
@@ -1149,7 +1360,7 @@ function parsearRutero(rows, fileName) {
 
     const factura = String(get('factura','# de Factura','ndefactura','consecutivo') || '').trim();
     const cliente = String(get('tercero','cliente','nombre') || '').trim();
-    const repartidor = String(get('transportador','repartidor','domiciliario') || '').trim();
+    const repartidor = String(get('transportador','transnportador','transnsportador','repartidor','domiciliario') || '').trim();
     const cantRaw = get('cantidad','kg','kilos','peso');
     const fechaRaw = get('fecentr','fecha','date','fec');
 
@@ -1255,7 +1466,7 @@ async function subirRutero() {
   document.getElementById('result-msg').textContent = insertadas + ' facturas importadas correctamente';
   document.getElementById('result-sub').textContent = omitidas > 0 ? omitidas + ' omitidas (ya existían o tuvieron error)' : 'Todas las facturas son nuevas';
   document.getElementById('upload-result').style.display = 'block';
-  await loadData();
+  await recargarActual();
 }
 
 function cancelarUpload() {
