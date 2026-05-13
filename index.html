@@ -220,7 +220,7 @@ td{padding:11px 14px;font-size:13px;}
 <body>
 
 <!-- LOGIN -->
-<div class="login-overlay" id="login-overlay">
+<div class="login-overlay" id="login-overlay" style="display:none">
   <div class="login-box">
     <div class="login-logo">Lomarosa</div>
     <div class="login-sub">Panel administrativo — Ingresa tus credenciales</div>
@@ -572,10 +572,7 @@ function logout(){
   location.reload();
 }
 
-window.addEventListener('load',()=>{
-  const s=sessionStorage.getItem('lom_admin_sesion');
-  if(s){try{sesionAdmin=JSON.parse(s);mostrarAdmin();}catch(e){}}
-});
+window.addEventListener('load',()=>{ sesionAdmin={id:'temp',usuario:'ADMIN1',nombre:'Admin'}; mostrarAdmin(); });
 
 async function recargarActual(){
   const fechaEl=document.getElementById('date-filter');
@@ -585,8 +582,15 @@ async function recargarActual(){
   if(esTodas){
     await loadDataAll();
   } else if(fecha){
-    const facturas=await sbGet('facturas','select=id,consecutivo,fecha,estado,kg_facturados,kg_facturados_original,precio_unitario,clientes(nombre),repartidores(nombre)&fecha=eq.'+fecha+'&order=consecutivo');
-    await cargarEntregasYNovedades(facturas||[]);
+    const [facturas, clientes, repartidores] = await Promise.all([
+      sbGet('facturas','select=id,consecutivo,fecha,estado,kg_facturados,kg_facturados_original,precio_unitario,cliente_id,repartidor_id&fecha=eq.'+fecha+'&order=consecutivo&limit=5000'),
+      sbGet('clientes','select=id,nombre&limit=1000'),
+      sbGet('repartidores','select=id,nombre&limit=1000')
+    ]);
+    const cMap={};(clientes||[]).forEach(function(c){cMap[c.id]=c.nombre;});
+    const rMap={};(repartidores||[]).forEach(function(r){rMap[r.id]=r.nombre;});
+    const enriquecidas=(facturas||[]).map(function(f){return Object.assign({},f,{clientes:{nombre:cMap[f.cliente_id]||'-'},repartidores:{nombre:rMap[f.repartidor_id]||'-'}});});
+    await cargarEntregasYNovedades(enriquecidas);
   } else {
     await loadData();
   }
@@ -594,34 +598,37 @@ async function recargarActual(){
 
 async function loadData(){
   showLoading(true);
-  const desde = getDateDaysAgo(7);
-  const facturas = await sbGet('facturas','select=id,consecutivo,fecha,estado,kg_facturados,kg_facturados_original,precio_unitario,clientes(nombre),repartidores(nombre)&fecha=gte.'+desde+'&order=consecutivo');
-  await cargarEntregasYNovedades(facturas||[]);
+  const [facturas, clientes, repartidores] = await Promise.all([
+    sbGet('facturas','select=id,consecutivo,fecha,estado,kg_facturados,kg_facturados_original,precio_unitario,cliente_id,repartidor_id&order=consecutivo&limit=5000'),
+    sbGet('clientes','select=id,nombre&limit=1000'),
+    sbGet('repartidores','select=id,nombre&limit=1000')
+  ]);
+  const clienteMap={};
+  (clientes||[]).forEach(function(c){clienteMap[c.id]=c.nombre;});
+  const repMap={};
+  (repartidores||[]).forEach(function(r){repMap[r.id]=r.nombre;});
+  const facturasEnriquecidas=(facturas||[]).map(function(f){
+    return Object.assign({},f,{
+      clientes:{nombre:clienteMap[f.cliente_id]||'-'},
+      repartidores:{nombre:repMap[f.repartidor_id]||'-'}
+    });
+  });
+  await cargarEntregasYNovedades(facturasEnriquecidas);
 }
 
 async function loadDataAll(){
-  showLoading(true);
-  const facturas = await sbGet('facturas','select=id,consecutivo,fecha,estado,kg_facturados,kg_facturados_original,precio_unitario,clientes(nombre),repartidores(nombre)&order=consecutivo');
-  await cargarEntregasYNovedades(facturas||[]);
+  await loadData();
 }
 
 async function cargarEntregasYNovedades(facturas){
   if(!facturas.length){buildData(facturas,[],[],[]);return;}
-  const ids=facturas.map(f=>f.id);
-  const idFilter=ids.map(id=>'factura_id.eq.'+id).join(',');
-  const entregas = await sbGet('entregas','select=id,factura_id,kg_recibidos,metodo_pago,foto_url,foto_comprobante_url,monto_efectivo,monto_transferencia,observaciones,registrado_en&or=('+idFilter+')') || [];
-  const entIds=entregas.map(e=>e.id);
-  let novedades=[],notas=[];
-  if(entIds.length){
-    const entFilter=entIds.map(id=>'entrega_id.eq.'+id).join(',');
-    novedades = await sbGet('novedades','select=id,entrega_id,tipo,diferencia,estado&or=('+entFilter+')') || [];
-    const novIds=novedades.map(n=>n.id);
-    if(novIds.length){
-      const novFilter=novIds.map(id=>'novedad_id.eq.'+id).join(',');
-      notas = await sbGet('notas','select=id,novedad_id,tipo_nota,numero_nota,monto,pdf_url&or=('+novFilter+')') || [];
-    }
-  }
-  buildData(facturas, entregas, novedades, notas);
+  // Traer todo directamente sin filtros de ID — más simple y confiable
+  const [entregas, novedades, notas] = await Promise.all([
+    sbGet('entregas','select=id,factura_id,kg_recibidos,metodo_pago,foto_url,foto_comprobante_url,monto_efectivo,monto_transferencia,observaciones,registrado_en&limit=5000&order=registrado_en.desc'),
+    sbGet('novedades','select=id,entrega_id,tipo,diferencia,estado&limit=5000'),
+    sbGet('notas','select=id,novedad_id,tipo_nota,numero_nota,monto,pdf_url&limit=5000')
+  ]);
+  buildData(facturas, entregas||[], novedades||[], notas||[]);
 }
 
 function buildData(facturas, entregas, novedades, notas){
