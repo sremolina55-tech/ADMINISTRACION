@@ -220,7 +220,7 @@ td{padding:11px 14px;font-size:13px;}
 <body>
 
 <!-- LOGIN -->
-<div class="login-overlay" id="login-overlay" style="display:none">
+<div class="login-overlay" id="login-overlay">
   <div class="login-box">
     <div class="login-logo">Lomarosa</div>
     <div class="login-sub">Panel administrativo — Ingresa tus credenciales</div>
@@ -390,7 +390,6 @@ td{padding:11px 14px;font-size:13px;}
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:24px" id="monitor-stats"></div>
       <div id="monitor-locales"></div>
     </div>
-
     <!-- CONSECUTIVOS -->
     <div class="page" id="page-consecutivos">
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px">
@@ -449,6 +448,7 @@ td{padding:11px 14px;font-size:13px;}
       <div>
         <div class="detail-title">Datos de la factura</div>
         <div class="detail-row"><span class="detail-key">Cliente</span><span class="detail-val" id="m-cliente">-</span></div>
+        <div class="detail-row"><span class="detail-key">Sucursal</span><span class="detail-val" id="m-sucursal" style="font-size:12px">-</span></div>
         <div class="detail-row"><span class="detail-key">Origen</span><span class="detail-val" id="m-origen">-</span></div>
         <div class="detail-row"><span class="detail-key">Repartidor</span><span class="detail-val" id="m-repartidor">-</span></div>
         <div class="detail-row"><span class="detail-key">Cantidad facturada</span><span class="detail-val" id="m-kg-fac">-</span></div>
@@ -526,9 +526,24 @@ td{padding:11px 14px;font-size:13px;}
 <script>
 const SUPABASE_URL='https://pqcgibsdewrrbukibubd.supabase.co';
 const SUPABASE_KEY='sb_publishable_M2_2LzTgPvj2s38Lq64Bzg_qrnJ-e1q';
-const H={'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation'};
+const H={'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation','Range':'0-4999'};
 
-async function sbGet(t,p){const r=await fetch(SUPABASE_URL+'/rest/v1/'+t+'?'+p,{headers:H});return r.ok?await r.json():null;}
+async function sbGet(t,p){
+  var results=[];
+  var pageSize=1000;
+  var offset=0;
+  while(true){
+    var rangeH=Object.assign({},H,{'Range':offset+'-'+(offset+pageSize-1)});
+    var r=await fetch(SUPABASE_URL+'/rest/v1/'+t+'?'+p+'&limit='+pageSize+'&offset='+offset,{headers:rangeH});
+    if(!r.ok) return results.length?results:null;
+    var data=await r.json();
+    if(!Array.isArray(data)||data.length===0) break;
+    results=results.concat(data);
+    if(data.length<pageSize) break;
+    offset+=pageSize;
+  }
+  return results;
+}
 async function sbPost(t,b){const r=await fetch(SUPABASE_URL+'/rest/v1/'+t,{method:'POST',headers:H,body:JSON.stringify(b)});const tx=await r.text();try{return{data:JSON.parse(tx),error:r.ok?null:tx};}catch(e){return{data:null,error:tx};}}
 async function sbPatch(t,f,b){await fetch(SUPABASE_URL+'/rest/v1/'+t+'?'+f,{method:'PATCH',headers:H,body:JSON.stringify(b)});}
 
@@ -561,8 +576,10 @@ async function doLogin(){
 }
 
 function mostrarAdmin(){
-  document.getElementById('login-overlay').style.display='none';
-  document.getElementById('user-info-badge').textContent='👤 '+sesionAdmin.usuario;
+  var lo=document.getElementById('login-overlay');
+  if(lo) lo.style.display='none';
+  var ub=document.getElementById('user-info-badge');
+  if(ub) ub.textContent='&#128100; '+sesionAdmin.usuario;
   loadData();
 }
 
@@ -572,7 +589,14 @@ function logout(){
   location.reload();
 }
 
-window.addEventListener('load',()=>{ sesionAdmin={id:'temp',usuario:'ADMIN1',nombre:'Admin'}; mostrarAdmin(); });
+window.addEventListener('load',function(){
+  var s=sessionStorage.getItem('lom_admin_sesion');
+  if(s){try{sesionAdmin=JSON.parse(s);mostrarAdmin();}catch(e){}}
+  else{
+    var lo=document.getElementById('login-overlay');
+    if(lo) lo.style.display='flex';
+  }
+});
 
 async function recargarActual(){
   const fechaEl=document.getElementById('date-filter');
@@ -583,7 +607,7 @@ async function recargarActual(){
     await loadDataAll();
   } else if(fecha){
     const [facturas, clientes, repartidores] = await Promise.all([
-      sbGet('facturas','select=id,consecutivo,fecha,estado,kg_facturados,kg_facturados_original,precio_unitario,cliente_id,repartidor_id&fecha=eq.'+fecha+'&order=consecutivo&limit=5000'),
+      sbGet('facturas','select=id,consecutivo,fecha,estado,kg_facturados,kg_facturados_original,precio_unitario,sucursal,cliente_id,repartidor_id&fecha=eq.'+fecha+'&order=consecutivo&limit=5000'),
       sbGet('clientes','select=id,nombre&limit=1000'),
       sbGet('repartidores','select=id,nombre&limit=1000')
     ]);
@@ -599,7 +623,7 @@ async function recargarActual(){
 async function loadData(){
   showLoading(true);
   const [facturas, clientes, repartidores] = await Promise.all([
-    sbGet('facturas','select=id,consecutivo,fecha,estado,kg_facturados,kg_facturados_original,precio_unitario,cliente_id,repartidor_id&order=consecutivo&limit=5000'),
+    sbGet('facturas','select=id,consecutivo,fecha,estado,kg_facturados,kg_facturados_original,precio_unitario,sucursal,cliente_id,repartidor_id&order=consecutivo&limit=5000'),
     sbGet('clientes','select=id,nombre&limit=1000'),
     sbGet('repartidores','select=id,nombre&limit=1000')
   ]);
@@ -647,7 +671,7 @@ function buildData(facturas, entregas, novedades, notas){
     return{
       idx,facturaId:f.id,entregaId:e.id||null,
       novedadId:n.id||null,
-      consecutivo:f.consecutivo,fecha:f.fecha,
+      consecutivo:f.consecutivo,fecha:f.fecha,sucursal:f.sucursal||null,
       hora:e.registrado_en?new Date(e.registrado_en).toTimeString().slice(0,5):null,
       cliente:f.clientes?.nombre||'-',repartidor:f.repartidores?.nombre||'-',
       kgFac:f.kg_facturados,kgFacOriginal:f.kg_facturados_original||null,kgRec:e.kg_recibidos??null,precio:f.precio_unitario,
@@ -795,6 +819,8 @@ function openModal(r){
   document.getElementById('m-consec').textContent='#'+r.consecutivo;
   document.getElementById('m-date').textContent=r.fecha+(r.hora?' &#183; '+r.hora:'');
   document.getElementById('m-cliente').textContent=r.cliente;
+  const sucursalEl=document.getElementById('m-sucursal');
+  sucursalEl.textContent=r.sucursal&&r.sucursal!==r.cliente?r.sucursal:'-';
   document.getElementById('m-origen').textContent=esPDV(r)?'&#127978; Punto de venta':'&#128757; Repartidor';
   document.getElementById('m-repartidor').textContent=r.repartidor;
   document.getElementById('m-kg-fac').textContent=fmtKg(r.kgFac)+(r.kgFacOriginal&&r.kgFacOriginal!==r.kgFac?' (original: '+fmtKg(r.kgFacOriginal)+')':'');
@@ -1155,6 +1181,9 @@ function renderMonitor_update(){
   if(badge){badge.textContent=totalPend;badge.style.display=totalPend>0?'':'none';}
 }
 
+
+
+
 function renderNovedades(){
   const list=document.getElementById('novedades-list');
   const novedades=DATA.filter(function(r){return r.hasNovedad;});
@@ -1221,8 +1250,8 @@ function showPage(id,el){
   document.getElementById('topbar-sub').innerHTML=meta[1];
   if(id==='novedades')renderNovedades();
   if(id==='consecutivos')renderConsecutivos();
+  if(id==='consecutivos')renderConsecutivos();
   if(id==='monitor')renderMonitor();
-  if(id==='buscar')setTimeout(()=>document.getElementById('main-search').focus(),100);
 }
 
 function getDateDaysAgo(days){
