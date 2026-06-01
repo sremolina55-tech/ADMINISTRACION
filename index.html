@@ -248,6 +248,7 @@ td{padding:11px 14px;font-size:13px;}
     <div class="nav-item" onclick="showPage('buscar',this)">&#8857; Buscar factura</div>
     <div class="nav-item" onclick="showPage('monitor',this)">&#128204; Monitor locales <span class="nav-badge" id="badge-monitor" style="display:none">0</span></div>
     <div class="nav-item" onclick="showPage('novedades',this)">&#9889; Novedades <span class="nav-badge" id="badge-novedades" style="display:none">0</span></div>
+    <div class="nav-item" onclick="showPage('consignaciones',this)">&#128181; Consignaciones <span class="nav-badge" id="badge-consig" style="display:none">0</span></div>
     <div class="nav-item" onclick="showPage('consecutivos',this)">&#8801; Consecutivos</div>
     <div class="nav-section" style="margin-top:4px">Accesos</div>
     <div class="nav-item" onclick="showPage('cargar',this)">&#8679; Cargar rutero</div>
@@ -276,7 +277,12 @@ td{padding:11px 14px;font-size:13px;}
         <option value="repartidor">Solo repartidor</option>
         <option value="pdv">Solo punto de venta</option>
       </select>
-      <button class="btn btn-primary" style="font-size:12px;gap:5px" onclick="exportarExcel()">&#8659; Excel</button>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <input type="date" id="excel-desde" style="background:var(--bg2);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:6px 10px;color:var(--text);font-family:var(--sans);font-size:12px;outline:none;cursor:pointer;" title="Desde">
+        <span style="font-size:12px;color:var(--text3)">—</span>
+        <input type="date" id="excel-hasta" style="background:var(--bg2);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:6px 10px;color:var(--text);font-family:var(--sans);font-size:12px;outline:none;cursor:pointer;" title="Hasta">
+        <button class="btn btn-primary" style="font-size:12px;gap:5px" onclick="exportarExcel()">&#8659; Excel</button>
+      </div>
       <button class="btn btn-ghost" style="font-size:12px" onclick="loadData();showToast('Actualizando...')" title="Actualizar datos">&#8635;</button>
       <div class="user-info-badge" id="user-info-badge" style="background:var(--rosa-dim);color:var(--rosa);border:1px solid var(--border)">&#128100; -</div>
       <button class="btn-logout-top" style="background:var(--bg3);border-color:var(--border);color:var(--text2)" onclick="logout()">Salir</button>
@@ -390,6 +396,17 @@ td{padding:11px 14px;font-size:13px;}
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:24px" id="monitor-stats"></div>
       <div id="monitor-locales"></div>
     </div>
+    <!-- CONSIGNACIONES -->
+    <div class="page" id="page-consignaciones">
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
+        <input type="date" id="consig-date-filter" onchange="renderConsignaciones()"
+          style="background:var(--bg2);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:9px 12px;color:var(--text);font-family:var(--sans);font-size:13px;outline:none;cursor:pointer;">
+        <button class="btn btn-ghost" onclick="document.getElementById('consig-date-filter').value='';renderConsignaciones()">Todas las fechas</button>
+        <span id="consig-page-count" style="font-size:13px;color:var(--text3)"></span>
+      </div>
+      <div id="consig-page-list"></div>
+    </div>
+
     <!-- CONSECUTIVOS -->
     <div class="page" id="page-consecutivos">
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px">
@@ -525,6 +542,7 @@ td{padding:11px 14px;font-size:13px;}
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 const SUPABASE_URL='https://pqcgibsdewrrbukibubd.supabase.co';
+function getHoyColombia(){var now=new Date();var local=new Date(now.getTime()+(-5*60)*60000);return local.toISOString().split('T')[0];}
 const SUPABASE_KEY='sb_publishable_M2_2LzTgPvj2s38Lq64Bzg_qrnJ-e1q';
 const H={'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation','Range':'0-4999'};
 
@@ -645,17 +663,24 @@ async function loadDataAll(){
 }
 
 async function cargarEntregasYNovedades(facturas){
-  if(!facturas.length){buildData(facturas,[],[],[]);return;}
-  // Traer todo directamente sin filtros de ID — más simple y confiable
-  const [entregas, novedades, notas] = await Promise.all([
+  if(!facturas.length){buildData(facturas,[],[],[],[],[]);return;}
+  const [entregas, novedades, notas, consigs, consigFacts] = await Promise.all([
     sbGet('entregas','select=id,factura_id,kg_recibidos,metodo_pago,foto_url,foto_comprobante_url,monto_efectivo,monto_transferencia,observaciones,registrado_en&limit=5000&order=registrado_en.desc'),
     sbGet('novedades','select=id,entrega_id,tipo,diferencia,estado&limit=5000'),
-    sbGet('notas','select=id,novedad_id,tipo_nota,numero_nota,monto,pdf_url&limit=5000')
+    sbGet('notas','select=id,novedad_id,tipo_nota,numero_nota,monto,pdf_url&limit=5000'),
+    sbGet('consignaciones','select=id,repartidor_id,fecha,estado,registrado_en&limit=5000'),
+    sbGet('consignacion_facturas','select=consignacion_id,factura_id&limit=5000')
   ]);
-  buildData(facturas, entregas||[], novedades||[], notas||[]);
+  buildData(facturas, entregas||[], novedades||[], notas||[], consigs||[], consigFacts||[]);
 }
 
-function buildData(facturas, entregas, novedades, notas){
+function buildData(facturas, entregas, novedades, notas, consigs, consigFacts){
+  consigs=consigs||[]; consigFacts=consigFacts||[];
+  // Map factura_id → consignacion
+  var consigMap={};
+  var consigById={};
+  consigs.forEach(function(c){consigById[c.id]=c;});
+  consigFacts.forEach(function(cf){consigMap[cf.factura_id]=cf.consignacion_id;});
   const entregaMap={};
   entregas.forEach(e=>{entregaMap[e.factura_id]=e;});
   const novedadMap={};
@@ -678,6 +703,9 @@ function buildData(facturas, entregas, novedades, notas){
       metodo:e.metodo_pago||null,
       fotoFactura:e.foto_url||null,fotoComprobante:e.foto_comprobante_url||null,
       montoEfectivo:e.monto_efectivo||null,montoTransf:e.monto_transferencia||null,montoCartera:e.monto_cartera||null,
+      consigId:consigMap[f.id]||null,
+      consigEstado:consigMap[f.id]&&consigById[consigMap[f.id]]?consigById[consigMap[f.id]].estado:null,
+      consigFecha:consigMap[f.id]&&consigById[consigMap[f.id]]?consigById[consigMap[f.id]].registrado_en:null,
       obs:e.observaciones||'',
       hasNovedad:!!n.id,diff,
       notaTipo:n.tipo||null,notaEstado:n.estado||null,
@@ -1175,6 +1203,117 @@ function renderMonitor(){
   localesEl.innerHTML=html;
 }
 
+async function renderConsignaciones(){
+  showLoading(true);
+  var fecha=document.getElementById('consig-date-filter').value;
+  var H2={'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY};
+  var url=SUPABASE_URL+'/rest/v1/consignaciones?select=id,repartidor_id,fecha,foto_url,monto_total,observaciones,estado,revisado_por,observacion_revision,registrado_en&order=registrado_en.desc&limit=500';
+  if(fecha) url+='&fecha=eq.'+fecha;
+  var r=await fetch(url,{headers:H2});
+  var consigs=r.ok?await r.json():[];
+  var rr=await fetch(SUPABASE_URL+'/rest/v1/repartidores?select=id,nombre&limit=500',{headers:H2});
+  var reps=rr.ok?await rr.json():[];
+  var repMap={};(reps||[]).forEach(function(r){repMap[r.id]=r.nombre;});
+  var consigIds=(consigs||[]).map(function(c){return c.id;});
+  var cfMap={};
+  if(consigIds.length){
+    var cfr=await fetch(SUPABASE_URL+'/rest/v1/consignacion_facturas?select=consignacion_id,factura_id,monto&consignacion_id=in.('+consigIds.join(',')+')'+'&limit=2000',{headers:H2});
+    var cfs=cfr.ok?await cfr.json():[];
+    (cfs||[]).forEach(function(cf){if(!cfMap[cf.consignacion_id])cfMap[cf.consignacion_id]=[];cfMap[cf.consignacion_id].push(cf);});
+  }
+  var factMap={};DATA.forEach(function(r){factMap[r.facturaId]=r;});
+  showLoading(false);
+  var pendientes=(consigs||[]).filter(function(c){return c.estado==='pendiente';}).length;
+  var badge=document.getElementById('badge-consig');
+  badge.textContent=pendientes;badge.style.display=pendientes>0?'':'none';
+  document.getElementById('consig-page-count').textContent=(consigs||[]).length+' consignacion'+(consigs.length!==1?'es':'');
+  var list=document.getElementById('consig-page-list');
+  if(!consigs||!consigs.length){list.innerHTML='<div class="empty"><div class="empty-icon">&#128181;</div><p>No hay consignaciones'+(fecha?' para esta fecha':'')+'</p></div>';return;}
+  var html='';
+  consigs.forEach(function(c){
+    var rep=repMap[c.repartidor_id]||'-';
+    var items=cfMap[c.id]||[];
+    var sumaFacturas=items.reduce(function(s,i){return s+(i.monto||0);},0);
+    var montoConsig=c.monto_total||0;
+    var diff=Math.round((montoConsig-sumaFacturas)*100)/100;
+    var cuadra=Math.abs(diff)<1;
+    var hora=c.registrado_en?new Date(c.registrado_en).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',timeZone:'America/Bogota'}):'';
+    var estadoColor=c.estado==='aprobada'?'var(--green)':c.estado==='rechazada'?'var(--red)':'var(--amber)';
+    var estadoLabel=c.estado==='aprobada'?'&#9989; Aprobada':c.estado==='rechazada'?'&#10005; Rechazada':'&#9200; Pendiente';
+    html+='<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:14px;overflow:hidden;">';
+    html+='<div style="padding:14px 18px;display:flex;align-items:center;gap:14px;">';
+    html+='<div style="width:44px;height:44px;border-radius:50%;background:var(--rosa);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:16px;flex-shrink:0;">'+rep.substring(0,2).toUpperCase()+'</div>';
+    html+='<div style="flex:1;min-width:0;">';
+    html+='<div style="font-weight:700;font-size:15px">'+rep+'</div>';
+    html+='<div style="font-size:12px;color:var(--text3)">'+c.fecha+(hora?' · '+hora:'')+'</div>';
+    html+='</div>';
+    html+='<div style="text-align:right;flex-shrink:0;">';
+    html+='<div style="font-size:18px;font-weight:700">$'+Math.round(montoConsig).toLocaleString('es-CO')+'</div>';
+    html+='<div style="font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600;background:'+estadoColor+'20;color:'+estadoColor+'">'+estadoLabel+'</div>';
+    html+='</div></div>';
+    html+='<div style="padding:0 18px 12px;display:flex;align-items:center;gap:10px;">';
+    html+='<div style="flex:1;background:var(--bg3);border-radius:8px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;">';
+    html+='<span style="font-size:12px;color:var(--text2)">'+items.length+' factura'+(items.length!==1?'s':'')+'</span>';
+    html+='<span style="font-size:12px;font-weight:700;color:'+(cuadra?'var(--green)':'var(--red)')+'">'+( cuadra?'&#9989; Cuadra':'&#9888; Dif $'+Math.abs(diff).toLocaleString('es-CO'))+'</span>';
+    html+='</div>';
+    html+='<button class="btn btn-ghost" style="font-size:12px;flex-shrink:0" onclick="toggleConsigDetail(\'det-'+c.id+'\')">Ver detalle</button>';
+    html+='</div>';
+    html+='<div id="det-'+c.id+'" style="display:none;border-top:1px solid var(--border);">';
+    if(c.foto_url){
+      html+='<div style="padding:14px 18px;border-bottom:1px solid var(--border);">';
+      html+='<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:8px;font-weight:600">Baucher</div>';
+      html+='<img src="'+c.foto_url+'" style="width:100%;max-height:280px;object-fit:contain;border-radius:10px;cursor:pointer;background:var(--bg3);" data-url="'+c.foto_url+'" onclick="window.open(this.getAttribute(\'data-url\'),\'_blank\')">'; 
+      html+='<div style="font-size:11px;color:var(--text3);text-align:center;margin-top:6px">Toca para ampliar</div>';
+      html+='</div>';
+    }
+    html+='<div style="padding:14px 18px;">';
+    html+='<div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:8px;font-weight:600">Facturas incluidas</div>';
+    items.forEach(function(cf){
+      var f=factMap[cf.factura_id];
+      html+='<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">';
+      html+='<span style="font-size:13px;color:var(--rosa);font-weight:500">'+(f?f.consecutivo:cf.factura_id.slice(0,12)+'...')+'</span>';
+      if(f) html+='<span style="font-size:12px;color:var(--text2)">'+f.cliente+'</span>';
+      html+='<span style="font-size:13px;font-weight:700">$'+Math.round(cf.monto||0).toLocaleString('es-CO')+'</span>';
+      html+='</div>';
+    });
+    html+='<div style="display:flex;justify-content:space-between;padding:8px 0;">';
+    html+='<span style="font-size:13px;font-weight:600">Total facturas</span>';
+    html+='<span style="font-size:14px;font-weight:700">$'+Math.round(sumaFacturas).toLocaleString('es-CO')+'</span>';
+    html+='</div>';
+    if(c.observaciones) html+='<div style="font-size:12px;color:var(--text3);padding:8px;background:var(--bg3);border-radius:8px">&#128172; '+c.observaciones+'</div>';
+    if(c.observacion_revision&&c.estado==='rechazada') html+='<div style="font-size:12px;color:var(--red);margin-top:6px;padding:8px;background:var(--red-dim);border-radius:8px">Motivo: '+c.observacion_revision+'</div>';
+    html+='</div>';
+    if(c.estado==='pendiente'){
+      html+='<div style="padding:12px 18px;border-top:1px solid var(--border);display:flex;gap:10px;">';
+      html+='<button class="btn btn-primary" style="flex:1;background:var(--green);border-color:var(--green)" onclick="aprobarConsig(\''+c.id+'\')">✅ Aprobar</button>';
+      html+='<button class="btn btn-ghost" style="flex:1;color:var(--red);border-color:var(--red)" onclick="rechazarConsig(\''+c.id+'\')">✕ Rechazar</button>';
+      html+='</div>';
+    }
+    html+='</div></div>';
+  });
+  list.innerHTML=html;
+}
+
+function toggleConsigDetail(id){
+  var el=document.getElementById(id);
+  if(el) el.style.display=el.style.display==='none'?'block':'none';
+}
+
+async function aprobarConsig(id){
+  showLoading(true);
+  var H2={'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation'};
+  await fetch(SUPABASE_URL+'/rest/v1/consignaciones?id=eq.'+id,{method:'PATCH',headers:H2,body:JSON.stringify({estado:'aprobada',revisado_por:sesionAdmin.usuario})});
+  showLoading(false);showToast('Consignacion aprobada');renderConsignaciones();
+}
+
+async function rechazarConsig(id){
+  var motivo=prompt('Motivo del rechazo (opcional):');
+  showLoading(true);
+  var H2={'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation'};
+  await fetch(SUPABASE_URL+'/rest/v1/consignaciones?id=eq.'+id,{method:'PATCH',headers:H2,body:JSON.stringify({estado:'rechazada',revisado_por:sesionAdmin.usuario,observacion_revision:motivo||''})});
+  showLoading(false);showToast('Consignacion rechazada');renderConsignaciones();
+}
+
 function renderMonitor_update(){
   const totalPend=DATA.filter(r=>r.kgRec==null&&r.metodo!=='devolucion').length;
   const badge=document.getElementById('badge-monitor');
@@ -1239,7 +1378,7 @@ function openLightbox(url){
 }
 function closeLightbox(){document.getElementById('lightbox').classList.remove('open');}
 
-const PAGE_META={dashboard:['Dashboard','Resumen del d&#237;a'],buscar:['Buscar factura','Consulta por consecutivo'],monitor:['Monitor de locales','Pendientes por punto'],novedades:['Novedades','Diferencias pendientes de gesti&#243;n'],consecutivos:['Control de consecutivos','Verificaci&#243;n diaria'],cargar:['Cargar rutero','Importar facturas desde Excel']};
+const PAGE_META={dashboard:['Dashboard','Resumen del d&#237;a'],buscar:['Buscar factura','Consulta por consecutivo'],monitor:['Monitor de locales','Pendientes por punto'],novedades:['Novedades','Diferencias pendientes de gesti&#243;n'],consignaciones:['Consignaciones','Revisi&#243;n de bauchers del d&#237;a'],consecutivos:['Control de consecutivos','Verificaci&#243;n diaria'],cargar:['Cargar rutero','Importar facturas desde Excel']};
 function showPage(id,el){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -1252,6 +1391,7 @@ function showPage(id,el){
   if(id==='consecutivos')renderConsecutivos();
   if(id==='consecutivos')renderConsecutivos();
   if(id==='monitor')renderMonitor();
+  if(id==='consignaciones')renderConsignaciones();
 }
 
 function getDateDaysAgo(days){
@@ -1272,8 +1412,8 @@ let origenActivo='todos';
 let fechaActiva='';
 
 function filtroRapido(tipo) {
-  const today = new Date().toISOString().split('T')[0];
-  const yesterday = new Date(Date.now()-86400000).toISOString().split('T')[0];
+  const today = getHoyColombia();
+  const yesterday = (function(){var d=new Date(new Date().getTime()+(-5*60)*60000);d.setDate(d.getDate()-1);return d.toISOString().split('T')[0];})();
   ['hoy','ayer','todas'].forEach(t=>{
     const btn=document.getElementById('btn-'+t);
     if(btn) btn.className='btn '+(t===tipo?'btn-primary':'btn-ghost');
@@ -1307,8 +1447,20 @@ function filterByDate(date) {
 }
 
 function exportarExcel() {
-  const source = VISTA_DATA.length ? VISTA_DATA : DATA;
+  var desde=document.getElementById('excel-desde').value;
+  var hasta=document.getElementById('excel-hasta').value;
+  var source = VISTA_DATA.length ? VISTA_DATA : DATA;
   if(!source.length) { alert('No hay datos para exportar'); return; }
+
+  // Aplicar filtro de fechas si se seleccionaron
+  if(desde||hasta){
+    source=source.filter(function(r){
+      if(desde&&r.fecha<desde) return false;
+      if(hasta&&r.fecha>hasta) return false;
+      return true;
+    });
+  }
+  if(!source.length){alert('No hay datos en ese rango de fechas');return;}
 
   const metodosMap = {efectivo:'Efectivo',transferencia:'Transferencia',no_pago:'No pagó',parcial:'Pago parcial'};
 
@@ -1325,6 +1477,8 @@ function exportarExcel() {
     'Método de pago': r.metodo ? (metodosMap[r.metodo]||r.metodo) : 'Pendiente',
     'Monto efectivo': r.montoEfectivo ?? '',
     'Monto transferencia': r.montoTransf ?? '',
+    'Consignacion estado': r.consigEstado ?? '',
+    'Consignacion fecha': r.consigFecha ? new Date(r.consigFecha).toLocaleString('es-CO',{timeZone:'America/Bogota'}) : '',
     'Estado entrega': r.kgRec ? (r.hasNovedad ? 'Con novedad' : 'OK') : 'Pendiente',
     'Tiene novedad': r.hasNovedad ? 'Sí' : 'No',
     'Tipo novedad': r.notaTipo === 'nota_credito' ? 'Nota crédito' : r.notaTipo === 'nota_debito' ? 'Nota débito' : r.notaTipo ?? '',
@@ -1349,7 +1503,7 @@ function exportarExcel() {
 
   XLSX.utils.book_append_sheet(wb, ws, 'Facturas');
 
-  const dateStr = new Date().toISOString().split('T')[0];
+  const dateStr = getHoyColombia();
   XLSX.writeFile(wb, `Lomarosa_Informe_${dateStr}.xlsx`);
   showToast('Informe exportado correctamente');
 }
