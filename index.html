@@ -252,6 +252,7 @@ td{padding:11px 14px;font-size:13px;}
     <div class="nav-item" onclick="showPage('consecutivos',this)">&#8801; Consecutivos</div>
     <div class="nav-section" style="margin-top:4px">Accesos</div>
     <div class="nav-item" onclick="showPage('cargar',this)">&#8679; Cargar rutero</div>
+    <div class="nav-item" onclick="showPage('clientes',this)">&#128101; Clientes</div>
   </nav>
 </aside>
 
@@ -383,6 +384,12 @@ td{padding:11px 14px;font-size:13px;}
           <button class="btn btn-ghost" style="margin-top:16px" onclick="resetUpload()">Cargar otro archivo</button>
         </div>
       </div>
+    </div>
+
+    <!-- CLIENTES -->
+    <div class="page" id="page-clientes">
+      <div id="cl-list-view"></div>
+      <div id="cl-form-view" style="display:none"></div>
     </div>
 
     <!-- MONITOR -->
@@ -1378,7 +1385,7 @@ function openLightbox(url){
 }
 function closeLightbox(){document.getElementById('lightbox').classList.remove('open');}
 
-const PAGE_META={dashboard:['Dashboard','Resumen del d&#237;a'],buscar:['Buscar factura','Consulta por consecutivo'],monitor:['Monitor de locales','Pendientes por punto'],novedades:['Novedades','Diferencias pendientes de gesti&#243;n'],consignaciones:['Consignaciones','Revisi&#243;n de bauchers del d&#237;a'],consecutivos:['Control de consecutivos','Verificaci&#243;n diaria'],cargar:['Cargar rutero','Importar facturas desde Excel']};
+const PAGE_META={clientes:['Clientes CRM','Gesti&#243;n y exportaci&#243;n a Xirux'],dashboard:['Dashboard','Resumen del d&#237;a'],buscar:['Buscar factura','Consulta por consecutivo'],monitor:['Monitor de locales','Pendientes por punto'],novedades:['Novedades','Diferencias pendientes de gesti&#243;n'],consignaciones:['Consignaciones','Revisi&#243;n de bauchers del d&#237;a'],consecutivos:['Control de consecutivos','Verificaci&#243;n diaria'],cargar:['Cargar rutero','Importar facturas desde Excel']};
 function showPage(id,el){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -1392,6 +1399,7 @@ function showPage(id,el){
   if(id==='consecutivos')renderConsecutivos();
   if(id==='monitor')renderMonitor();
   if(id==='consignaciones')renderConsignaciones();
+  if(id==='clientes')renderClientes();
 }
 
 function getDateDaysAgo(days){
@@ -1670,6 +1678,154 @@ function resetUpload() {
   document.getElementById('upload-preview').style.display = 'none';
   document.getElementById('rutero-file').value = '';
   ruteroData = [];
+}
+
+// ═══ CLIENTES CRM ═══
+const DIVIPOLA_ADM={"Bogotá D.C.":"11001","Bogotá":"11001","Soacha":"25754","Facatativá":"25269","Zipaquirá":"25899","Chía":"25175","Fusagasugá":"25290","Girardot":"25307","Madrid":"25430","Mosquera":"25473","Funza":"25286","Cajicá":"25126","Cota":"25214","La Calera":"25377","Tenjo":"25799","Sopó":"25758","Tocancipá":"25817","Sibaté":"25743","Medellín":"05001","Bello":"05088","Itagüí":"05360","Envigado":"05266","Barranquilla":"08001","Cartagena":"13001","Cali":"76001"};
+let _clAdm=[];
+
+function showToastAdm(msg,type='ok'){
+  let t=document.getElementById('toast-adm');
+  if(!t){t=document.createElement('div');t.id='toast-adm';t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:10px 22px;border-radius:8px;font-size:13px;font-weight:600;z-index:9999;color:#fff;transition:opacity .3s';document.body.appendChild(t);}
+  t.textContent=msg;t.style.background=type==='ok'?'#4a9e6a':'#e84050';t.style.opacity='1';
+  clearTimeout(t._to);t._to=setTimeout(()=>{t.style.opacity='0'},3000);
+}
+
+async function renderClientes(){
+  _clAdm=await sbGet('crm_clientes','select=*,crm_vendedores(nombre)&order=nombre')||[];
+  document.getElementById('cl-list-view').style.display='';
+  document.getElementById('cl-form-view').style.display='none';
+  document.getElementById('cl-list-view').innerHTML=`
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+      <input id="cl-search" placeholder="Buscar por nombre o NIT..." oninput="filterClAdm()" style="flex:1;min-width:180px;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:var(--sans);font-size:13px;outline:none;background:var(--bg2)">
+      <button onclick="showClForm()" style="background:var(--rosa);color:#fff;border:none;border-radius:var(--radius-sm);padding:10px 18px;cursor:pointer;font-family:var(--sans);font-size:13px;font-weight:600;white-space:nowrap">+ Nuevo cliente</button>
+      <button onclick="exClAdmin()" style="background:#2d7a4f;color:#fff;border:none;border-radius:var(--radius-sm);padding:10px 18px;cursor:pointer;font-family:var(--sans);font-size:13px;font-weight:600;white-space:nowrap">↓ Archivo plano Xirux</button>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Nombre</th><th>NIT / CC</th><th>Ciudad</th><th>Vendedor</th><th>ERP</th></tr></thead>
+      <tbody id="cl-tbody"></tbody>
+    </table></div>`;
+  filterClAdm();
+}
+
+function filterClAdm(){
+  const q=(document.getElementById('cl-search')?.value||'').toLowerCase();
+  const f=_clAdm.filter(c=>(c.nombre||'').toLowerCase().includes(q)||(c.codigo||'').includes(q));
+  document.getElementById('cl-tbody').innerHTML=f.slice(0,60).map(c=>`
+    <tr onclick="showClForm('${c.id}')" style="cursor:pointer">
+      <td style="font-weight:500">${c.nombre||''}</td>
+      <td style="color:var(--text2);font-size:12px">${c.codigo||''}</td>
+      <td style="color:var(--text2);font-size:12px">${c.ciudad||''}</td>
+      <td style="color:var(--text2);font-size:12px">${c.crm_vendedores?.nombre||''}</td>
+      <td>${c.xirux_sync?'<span style="color:var(--green);font-size:11px;font-weight:700">✓ ERP</span>':'<span style="color:var(--amber);font-size:11px">Pendiente</span>'}</td>
+    </tr>`).join('');
+}
+
+async function showClForm(id=''){
+  document.getElementById('cl-list-view').style.display='none';
+  const fv=document.getElementById('cl-form-view');fv.style.display='';
+  const vens=await sbGet('crm_vendedores','select=id,nombre&order=nombre')||[];
+  const venOpts=vens.map(v=>`<option value="${v.id}">${v.nombre}</option>`).join('');
+  const c=id?(_clAdm.find(x=>x.id===id)||{}):{};
+  fv.innerHTML=`<div style="max-width:600px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+      <button onclick="renderClientes()" style="background:none;border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 14px;cursor:pointer;font-family:var(--sans);font-size:13px">← Volver</button>
+      <strong style="font-size:16px">${id?'Editar cliente':'Nuevo cliente'}</strong>
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:24px;display:flex;flex-direction:column;gap:14px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div><div style="font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600">TIPO DOC *</div>
+          <select id="cf-tipo" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:var(--sans);font-size:13px;background:var(--bg2)">
+            <option value="13" ${c.tipo_documento==='13'?'selected':''}>CC</option>
+            <option value="31" ${c.tipo_documento==='31'?'selected':''}>NIT</option>
+          </select></div>
+        <div><div style="font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600">NIT / CC *</div>
+          <input id="cf-codigo" value="${c.codigo||''}" placeholder="Ej: 900123456-1" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:var(--sans);font-size:13px"></div>
+      </div>
+      <div><div style="font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600">NOMBRE / RAZÓN SOCIAL *</div>
+        <input id="cf-nombre" value="${c.nombre||''}" placeholder="Nombre completo" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:var(--sans);font-size:13px"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div><div style="font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600">TELÉFONO</div>
+          <input id="cf-tel" value="${c.telefono||''}" placeholder="Fijo" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:var(--sans);font-size:13px"></div>
+        <div><div style="font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600">CELULAR</div>
+          <input id="cf-cel" value="${c.celular||''}" placeholder="Celular" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:var(--sans);font-size:13px"></div>
+      </div>
+      <div><div style="font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600">CORREO *</div>
+        <input id="cf-email" value="${c.correo_electronico||''}" placeholder="correo@empresa.com" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:var(--sans);font-size:13px"></div>
+      <div><div style="font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600">DIRECCIÓN *</div>
+        <input id="cf-dir" value="${c.direccion||''}" placeholder="Dirección completa" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:var(--sans);font-size:13px"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div><div style="font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600">CIUDAD *</div>
+          <input id="cf-ciudad" value="${c.ciudad||''}" placeholder="Bogotá D.C." list="cl-ciudades" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:var(--sans);font-size:13px">
+          <datalist id="cl-ciudades">${Object.keys(DIVIPOLA_ADM).map(ci=>`<option value="${ci}">`).join('')}</datalist></div>
+        <div><div style="font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600">VENDEDOR</div>
+          <select id="cf-ven" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:var(--sans);font-size:13px;background:var(--bg2)">
+            <option value="">Sin asignar</option>${venOpts}
+          </select></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div><div style="font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600">CLASIFICACIÓN A *</div>
+          <input id="cf-clasa" value="${c.clasificacion_a||''}" placeholder="Ej: 1" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:var(--sans);font-size:13px"></div>
+        <div><div style="font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600">CONDICIÓN PAGO</div>
+          <input id="cf-condpago" value="${c.xirux_condpago||''}" placeholder="Ej: 1000" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:var(--sans);font-size:13px"></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:6px">
+        <button onclick="renderClientes()" style="flex:1;padding:11px;border:1.5px solid var(--border);background:none;border-radius:var(--radius-sm);cursor:pointer;font-family:var(--sans);font-size:13px">Cancelar</button>
+        <button onclick="saveClAdmin('${id}')" style="flex:2;padding:11px;background:var(--rosa);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;font-family:var(--sans);font-size:13px;font-weight:600">${id?'Guardar cambios':'Crear cliente'}</button>
+      </div>
+    </div>
+  </div>`;
+  if(id&&c.vendedor_id)document.getElementById('cf-ven').value=c.vendedor_id;
+}
+
+async function saveClAdmin(id){
+  const nombre=document.getElementById('cf-nombre').value.trim();
+  const codigo=document.getElementById('cf-codigo').value.trim();
+  const email=document.getElementById('cf-email').value.trim();
+  const dir=document.getElementById('cf-dir').value.trim();
+  const ciudad=document.getElementById('cf-ciudad').value.trim();
+  const clasa=document.getElementById('cf-clasa').value.trim();
+  if(!nombre||!codigo||!email||!dir||!ciudad||!clasa){showToastAdm('Completa todos los campos obligatorios (*)','err');return;}
+  const payload={nombre,codigo,tipo_documento:document.getElementById('cf-tipo').value,
+    telefono:document.getElementById('cf-tel').value.trim()||null,
+    celular:document.getElementById('cf-cel').value.trim()||null,
+    correo_electronico:email,direccion:dir,ciudad,clasificacion_a:clasa,
+    xirux_condpago:document.getElementById('cf-condpago').value.trim()||null,
+    vendedor_id:document.getElementById('cf-ven').value||null,
+    xirux_sync:false,fecha_ingreso:new Date().toISOString().split('T')[0]};
+  try{
+    if(id){await sbPatch('crm_clientes','id=eq.'+id,payload);}
+    else{const r=await sbPost('crm_clientes',payload);if(r.error)throw new Error(r.error);}
+    showToastAdm(id?'Cliente actualizado ✓':'Cliente creado ✓');
+    await renderClientes();
+  }catch(e){showToastAdm('Error: '+e.message,'err');}
+}
+
+async function exClAdmin(){
+  const cls=await sbGet('crm_clientes','select=*,crm_vendedores(nit,codigo_vendedor),crm_listas_precio(codigo_xirux)&xirux_sync=is.false&order=nombre')||[];
+  if(!cls.length){showToastAdm('Sin clientes pendientes de exportar','err');return;}
+  const tipoMap={"13":"C","31":"N"};
+  const hd=["IDTERCER","NOMBRE","PRIAPELL","SEGAPELL","PRINOMBRE","OTROSNOM","RAZON","TIPOID","NIT","DIRECC","TELEFO","FAX","CIUDAD","CONTAC","TELCONTAC","CLASEA","CLASEB","CLASEC","CLASED","CLASEE","URL","IDAGEIVA","IDAGEICA","IDACTICA","AUTORETEN","SUJRETFTE","SUJRETCREE","EMPLEADO","CLIENTE","VENDEDOR","PROVEEDOR","IDLISPRE","CONDPAGO"];
+  const rows=cls.map(c=>{
+    const tipoid=tipoMap[c.tipo_documento]||"C";const esNIT=tipoid==="N";
+    const nom=(c.nombre||"").trim();const words=nom.split(/\s+/);
+    const ciudad="CO"+(DIVIPOLA_ADM[c.ciudad]||"11001");
+    return[{v:String((c.codigo||"").replace(/-\d+$/,"").trim()),t:"s"},nom,
+      esNIT?"":words[0]||"",esNIT?"":(words[1]||""),esNIT?"":words[0]||"",
+      esNIT?"":(words.length>2?words.slice(2).join(" "):""),nom,tipoid,
+      {v:String(c.codigo||""),t:"s"},c.direccion||"",c.telefono||"",c.celular||"",
+      ciudad,nom,c.telefono||c.celular||"",c.clasificacion_a?parseInt(c.clasificacion_a):"",
+      "","","","",c.correo_electronico||"",c.xirux_agente_iva||"",c.xirux_agente_ica||"",
+      c.xirux_actividad_ica||"","N","N","N","N","S","N","N",
+      parseInt(c.crm_listas_precio?.codigo_xirux)||"",parseInt(c.xirux_condpago)||""];
+  });
+  const ws=XLSX.utils.aoa_to_sheet([hd,...rows]);
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Clientes");
+  const hoy=new Date().toISOString().split('T')[0];
+  XLSX.writeFile(wb,'Plantilla_cargue_clientes_'+hoy+'.xlsx');
+  const ids=cls.map(c=>c.id);
+  await sbPatch('crm_clientes','id=in.('+ids.join(',')+')',{xirux_sync:true});
+  showToastAdm(cls.length+' clientes exportados y marcados como ERP ✓');
 }
 </script>
 </body>
