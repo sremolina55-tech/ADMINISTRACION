@@ -1228,7 +1228,7 @@ async function renderConsignaciones(){
     if(cgIds.length){
       var sz=400;
       for(var i=0;i<cgIds.length;i+=sz){
-        var cfr=await fetch(SUPABASE_URL+'/rest/v1/consignacion_facturas?select=consignacion_id,factura_id,monto&consignacion_id=in.('+cgIds.slice(i,i+sz).join(',')+')',{headers:H2});
+        var cfr=await fetch(SUPABASE_URL+'/rest/v1/consignacion_facturas?select=consignacion_id,factura_id,monto,facturas(id,consecutivo,fecha,clientes(nombre))&consignacion_id=in.('+cgIds.slice(i,i+sz).join(',')+')',{headers:H2});
         var cfs=cfr.ok?await cfr.json():[];
         (cfs||[]).forEach(cf=>{if(!cfMap[cf.consignacion_id])cfMap[cf.consignacion_id]=[];cfMap[cf.consignacion_id].push(cf);});
       }
@@ -1265,7 +1265,7 @@ async function renderConsignaciones(){
 
     (consigs||[]).forEach(c=>{
       var rep=ensureRep(c.repartidor_id);if(!rep)return;
-      var facts=(cfMap[c.id]||[]).map(cf=>{var f=facMap[cf.factura_id]||{};return{factura_id:cf.factura_id,monto:Number(cf.monto)||0,consecutivo:f.consecutivo||'',fecha:f.fecha||'',cliente:f.clientes?.nombre||''};});
+      var facts=(cfMap[c.id]||[]).map(cf=>{var f=cf.facturas||{};return{factura_id:cf.factura_id,monto:Number(cf.monto)||0,consecutivo:f.consecutivo||'',fecha:f.fecha||'',cliente:f.clientes?.nombre||''};});
       var monto=Number(c.monto_total||0)||facts.reduce((s,f)=>s+Number(f.monto||0),0);
       var item=Object.assign({},c,{facturas:facts,monto_total:monto});
       if(c.estado==='pendiente')rep.porAprobar.push(item);
