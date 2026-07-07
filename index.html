@@ -1265,7 +1265,7 @@ async function renderConsignaciones(){
 
     (consigs||[]).forEach(c=>{
       var rep=ensureRep(c.repartidor_id);if(!rep)return;
-      var facts=cfMap[c.id]||[];
+      var facts=(cfMap[c.id]||[]).map(cf=>{var f=facMap[cf.factura_id]||{};return{factura_id:cf.factura_id,monto:Number(cf.monto)||0,consecutivo:f.consecutivo||'',fecha:f.fecha||'',cliente:f.clientes?.nombre||''};});
       var monto=Number(c.monto_total||0)||facts.reduce((s,f)=>s+Number(f.monto||0),0);
       var item=Object.assign({},c,{facturas:facts,monto_total:monto});
       if(c.estado==='pendiente')rep.porAprobar.push(item);
@@ -1347,8 +1347,10 @@ function _cgAdminRenderDetalle(repId){
     html+='<div style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;font-weight:600;color:#f57f17;margin-bottom:14px">🔍 Por aprobar ('+rep.porAprobar.length+')</div>';
     rep.porAprobar.forEach(c=>{
       var ts=c.registrado_en?new Date(c.registrado_en).toLocaleString('es-CO',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}):'';
+      var facsList=c.facturas||[];
       html+='<div style="background:var(--bg3);border-radius:10px;padding:14px;margin-bottom:10px">';
-      html+='<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px"><div><div style="font-weight:700;font-size:14px">📅 '+c.fecha+(ts?' · '+ts:'')+'</div><div style="font-size:12px;color:var(--text3)">'+(c.facturas||[]).length+' factura'+((c.facturas||[]).length!==1?'s':'')+(c.observaciones?' · '+c.observaciones:'')+'</div></div><div style="font-size:18px;font-weight:800">$'+Math.round(Number(c.monto_total||0)).toLocaleString('es-CO')+'</div></div>';
+      html+='<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px"><div><div style="font-weight:700;font-size:14px">📅 '+c.fecha+(ts?' · '+ts:'')+'</div><div style="font-size:12px;color:var(--text3)">'+facsList.length+' factura'+(facsList.length!==1?'s':'')+(c.observaciones?' · '+c.observaciones:'')+'</div></div><div style="font-size:18px;font-weight:800">$'+Math.round(Number(c.monto_total||0)).toLocaleString('es-CO')+'</div></div>';
+      if(facsList.length){html+='<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:10px"><thead><tr style="background:rgba(0,0,0,0.04)"><th style="padding:5px 8px;text-align:left;color:var(--text2)">Factura</th><th style="padding:5px 8px;text-align:left;color:var(--text2)">Cliente</th><th style="padding:5px 8px;text-align:left;color:var(--text2)">Fecha</th><th style="padding:5px 8px;text-align:right;color:var(--text2)">Monto</th></tr></thead><tbody>';facsList.forEach(f=>{html+='<tr style="border-top:1px solid var(--border)"><td style="padding:5px 8px;color:var(--rosa);font-weight:600">#'+f.consecutivo+'</td><td style="padding:5px 8px;color:var(--text)">'+f.cliente+'</td><td style="padding:5px 8px;color:var(--text3)">'+f.fecha+'</td><td style="padding:5px 8px;text-align:right;font-weight:600">$'+Math.round(f.monto).toLocaleString('es-CO')+'</td></tr>';});html+='</tbody></table>';}
       if(c.foto_url)html+='<div style="margin-bottom:10px"><img src="'+c.foto_url+'" style="max-height:180px;max-width:100%;border-radius:8px;cursor:pointer;object-fit:contain" onclick="window.open(\''+c.foto_url+'\',\'_blank\')"></div>';
       else html+='<div style="font-size:12px;color:var(--red);margin-bottom:10px">⚠️ Sin soporte adjunto</div>';
       html+='<div style="display:flex;gap:8px"><button class="btn btn-primary" style="flex:1;background:var(--green);border-color:var(--green)" onclick="aprobarConsig(\''+c.id+'\')">✅ Aprobar</button><button class="btn btn-ghost" style="flex:1;color:var(--red);border-color:var(--red)" onclick="rechazarConsig(\''+c.id+'\')">✕ Rechazar</button></div></div>';
@@ -1360,8 +1362,13 @@ function _cgAdminRenderDetalle(repId){
     html+='<div style="background:var(--bg2);border:1.5px solid var(--green-dim);border-radius:var(--radius);padding:18px;margin-bottom:16px">';
     html+='<div style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;font-weight:600;color:var(--green);margin-bottom:14px">✅ Aprobadas ('+rep.aprobadas.length+')</div>';
     rep.aprobadas.forEach(c=>{
-      html+='<div style="background:var(--bg3);border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:600;font-size:13px">📅 '+c.fecha+'</div><div style="font-size:11px;color:var(--text3)">'+(c.facturas||[]).length+' factura'+((c.facturas||[]).length!==1?'s':'')+(c.observacion_revision?' · 💬 '+c.observacion_revision:'')+'</div></div>';
+      var facsList=c.facturas||[];
+      html+='<div style="background:var(--bg3);border-radius:10px;padding:12px 14px;margin-bottom:8px">';
+      html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:'+(facsList.length?'8px':'0')+'">';
+      html+='<div><div style="font-weight:600;font-size:13px">📅 '+c.fecha+'</div><div style="font-size:11px;color:var(--text3)">'+facsList.length+' factura'+(facsList.length!==1?'s':'')+(c.observacion_revision?' · 💬 '+c.observacion_revision:'')+'</div></div>';
       html+='<div style="text-align:right"><div style="font-weight:800;font-size:15px;color:var(--green)">$'+Math.round(Number(c.monto_total||0)).toLocaleString('es-CO')+'</div>'+(c.foto_url?'<button onclick="window.open(\''+c.foto_url+'\',\'_blank\')" style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--blue);text-decoration:underline">📎 ver soporte</button>':'')+'</div></div>';
+      if(facsList.length){html+='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:rgba(0,0,0,0.04)"><th style="padding:5px 8px;text-align:left;color:var(--text2)">Factura</th><th style="padding:5px 8px;text-align:left;color:var(--text2)">Cliente</th><th style="padding:5px 8px;text-align:left;color:var(--text2)">Fecha</th><th style="padding:5px 8px;text-align:right;color:var(--text2)">Monto</th></tr></thead><tbody>';facsList.forEach(f=>{html+='<tr style="border-top:1px solid var(--border)"><td style="padding:5px 8px;color:var(--rosa);font-weight:600">#'+f.consecutivo+'</td><td style="padding:5px 8px;color:var(--text)">'+f.cliente+'</td><td style="padding:5px 8px;color:var(--text3)">'+f.fecha+'</td><td style="padding:5px 8px;text-align:right;font-weight:600">$'+Math.round(f.monto).toLocaleString('es-CO')+'</td></tr>';});html+='</tbody></table>';}
+      html+='</div>';
     });
     html+='</div>';
   }
@@ -1370,7 +1377,13 @@ function _cgAdminRenderDetalle(repId){
     html+='<div style="background:var(--bg2);border:1.5px solid var(--red-dim);border-radius:var(--radius);padding:18px;margin-bottom:16px">';
     html+='<div style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;font-weight:600;color:var(--red);margin-bottom:14px">❌ Rechazadas ('+rep.rechazadas.length+')</div>';
     rep.rechazadas.forEach(c=>{
-      html+='<div style="background:var(--bg3);border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:600;font-size:13px">📅 '+c.fecha+'</div>'+(c.observacion_revision?'<div style="font-size:11px;color:var(--red)">💬 '+c.observacion_revision+'</div>':'')+'</div><div style="font-weight:700;font-size:14px">$'+Math.round(Number(c.monto_total||0)).toLocaleString('es-CO')+'</div></div>';
+      var facsList=c.facturas||[];
+      html+='<div style="background:var(--bg3);border-radius:10px;padding:12px 14px;margin-bottom:8px">';
+      html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:'+(facsList.length?'8px':'0')+'">';
+      html+='<div><div style="font-weight:600;font-size:13px">📅 '+c.fecha+'</div>'+(c.observacion_revision?'<div style="font-size:11px;color:var(--red)">💬 '+c.observacion_revision+'</div>':'')+'</div>';
+      html+='<div style="font-weight:700;font-size:14px">$'+Math.round(Number(c.monto_total||0)).toLocaleString('es-CO')+'</div></div>';
+      if(facsList.length){html+='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:rgba(0,0,0,0.04)"><th style="padding:5px 8px;text-align:left;color:var(--text2)">Factura</th><th style="padding:5px 8px;text-align:left;color:var(--text2)">Cliente</th><th style="padding:5px 8px;text-align:left;color:var(--text2)">Fecha</th><th style="padding:5px 8px;text-align:right;color:var(--text2)">Monto</th></tr></thead><tbody>';facsList.forEach(f=>{html+='<tr style="border-top:1px solid var(--border)"><td style="padding:5px 8px;color:var(--rosa);font-weight:600">#'+f.consecutivo+'</td><td style="padding:5px 8px;color:var(--text)">'+f.cliente+'</td><td style="padding:5px 8px;color:var(--text3)">'+f.fecha+'</td><td style="padding:5px 8px;text-align:right;font-weight:600">$'+Math.round(f.monto).toLocaleString('es-CO')+'</td></tr>';});html+='</tbody></table>';}
+      html+='</div>';
     });
     html+='</div>';
   }
