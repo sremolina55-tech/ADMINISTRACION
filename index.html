@@ -1208,6 +1208,34 @@ function renderMonitor(){
 }
 
 let _cgAdminByRep={},_cgAdminRepSel=null;
+var _cgFiltroDesde='',_cgFiltroHasta='';
+
+function _cgFiltroBarHtml(){
+  var inputStyle='background:var(--bg3);border:1.5px solid var(--border);border-radius:8px;padding:7px 11px;font-size:13px;color:var(--text);font-family:var(--sans);outline:none;cursor:pointer';
+  var html='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;margin-bottom:16px">';
+  html+='<span style="font-size:13px;color:var(--text2);font-weight:500">📅 Rango de fechas:</span>';
+  html+='<input type="date" id="cg-desde" value="'+_cgFiltroDesde+'" style="'+inputStyle+'" onchange="_cgFiltroDesde=this.value;_cgAplicarFiltro()">';
+  html+='<span style="color:var(--text3);font-size:13px">—</span>';
+  html+='<input type="date" id="cg-hasta" value="'+_cgFiltroHasta+'" style="'+inputStyle+'" onchange="_cgFiltroHasta=this.value;_cgAplicarFiltro()">';
+  if(_cgFiltroDesde||_cgFiltroHasta) html+='<button onclick="_cgLimpiarFiltro()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;color:var(--text3);font-family:var(--sans)">✕ Limpiar</button>';
+  html+='</div>';
+  return html;
+}
+
+function _cgAplicarFiltro(){_cgAdminRepSel?_cgAdminRenderDetalle(_cgAdminRepSel):_cgAdminRenderGrid();}
+function _cgLimpiarFiltro(){_cgFiltroDesde='';_cgFiltroHasta='';_cgAplicarFiltro();}
+
+function _cgFiltrarRep(rep){
+  if(!_cgFiltroDesde&&!_cgFiltroHasta) return rep;
+  var d=_cgFiltroDesde,h=_cgFiltroHasta;
+  function ok(f){return(!d||f>=d)&&(!h||f<=h);}
+  return Object.assign({},rep,{
+    sinConsignar:rep.sinConsignar.filter(i=>ok(i.fecha)),
+    porAprobar:rep.porAprobar.filter(c=>ok(c.fecha)),
+    aprobadas:rep.aprobadas.filter(c=>ok(c.fecha)),
+    rechazadas:rep.rechazadas.filter(c=>ok(c.fecha))
+  });
+}
 
 async function renderConsignaciones(){
   var view=document.getElementById('cg-admin-view');
@@ -1288,20 +1316,21 @@ async function renderConsignaciones(){
 
 function _cgAdminRenderGrid(){
   var view=document.getElementById('cg-admin-view');if(!view)return;
-  var reps=Object.values(_cgAdminByRep).sort((a,b)=>(b.sinConsignar.length+b.porAprobar.length)-(a.sinConsignar.length+a.porAprobar.length));
-  if(!reps.length){
-    view.innerHTML='<div style="padding:64px;text-align:center;color:var(--text3)"><div style="font-size:48px;margin-bottom:16px">✅</div><div style="font-size:16px">Todo al día — sin pendientes</div></div>';
-    return;
-  }
+  var reps=Object.values(_cgAdminByRep).map(_cgFiltrarRep).sort((a,b)=>(b.sinConsignar.length+b.porAprobar.length)-(a.sinConsignar.length+a.porAprobar.length));
   var totalSinConsig=reps.reduce((s,r)=>s+r.sinConsignar.length,0);
   var totalPorAp=reps.reduce((s,r)=>s+r.porAprobar.length,0);
-  var html='<div style="display:flex;align-items:center;margin-bottom:16px;gap:12px">';
-  html+='<div style="display:flex;gap:8px;flex-wrap:wrap">';
+  var html=_cgFiltroBarHtml();
+  if(!reps.length||(!totalSinConsig&&!totalPorAp&&reps.every(r=>!r.aprobadas.length&&!r.rechazadas.length))){
+    html+='<div style="padding:48px;text-align:center;color:var(--text3)"><div style="font-size:48px;margin-bottom:16px">✅</div><div style="font-size:16px">Sin resultados para este rango</div></div>';
+    view.innerHTML=html;return;
+  }
+  html+='<div style="display:flex;align-items:center;margin-bottom:16px;gap:12px"><div style="display:flex;gap:8px;flex-wrap:wrap">';
   if(totalSinConsig)html+='<span style="background:var(--amber-dim);color:var(--amber);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600">⏳ '+totalSinConsig+' sin consignar</span>';
   if(totalPorAp)html+='<span style="background:#fff8e1;color:#f57f17;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600">🔍 '+totalPorAp+' por aprobar</span>';
   html+='</div><button class="btn btn-ghost" onclick="renderConsignaciones()" style="margin-left:auto;font-size:12px">🔄 Actualizar</button></div>';
   html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px">';
   reps.forEach(function(rep){
+    if(!rep.sinConsignar.length&&!rep.porAprobar.length&&!rep.aprobadas.length&&!rep.rechazadas.length)return;
     var montoPend=rep.sinConsignar.reduce((s,i)=>s+i.monto,0);
     var montoPorAp=rep.porAprobar.reduce((s,c)=>s+Number(c.monto_total||0),0);
     var montoAp=rep.aprobadas.reduce((s,c)=>s+Number(c.monto_total||0),0);
@@ -1326,12 +1355,14 @@ function _cgAdminVolverGrid(){_cgAdminRepSel=null;_cgAdminRenderGrid();}
 
 function _cgAdminRenderDetalle(repId){
   var view=document.getElementById('cg-admin-view');
-  var rep=_cgAdminByRep[repId];
-  if(!rep||!view){_cgAdminRepSel=null;_cgAdminRenderGrid();return;}
-  var html='<div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">';
+  var repRaw=_cgAdminByRep[repId];
+  if(!repRaw||!view){_cgAdminRepSel=null;_cgAdminRenderGrid();return;}
+  var rep=_cgFiltrarRep(repRaw);
+  var html='<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">';
   html+='<button onclick="_cgAdminVolverGrid()" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 14px;cursor:pointer;font-size:13px;font-family:var(--sans);color:var(--text2)">‹ Conductores</button>';
   html+='<h2 style="font-family:\'Playfair Display\',serif;font-size:20px;font-weight:500;margin:0">'+rep.nombre+'</h2>';
   html+='<button class="btn btn-ghost" onclick="renderConsignaciones()" style="margin-left:auto;font-size:12px">🔄</button></div>';
+  html+=_cgFiltroBarHtml();
 
   if(rep.sinConsignar.length){
     var tot=rep.sinConsignar.reduce((s,i)=>s+i.monto,0);
