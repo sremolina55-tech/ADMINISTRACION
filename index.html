@@ -1255,8 +1255,9 @@ async function renderConsignaciones(){
       return _cgAdminByRep[repId];
     };
 
+    var dSC=new Date();dSC.setDate(dSC.getDate()-60);var desdeSC=dSC.toISOString().split('T')[0];
     ents.filter(e=>(e.metodo_pago==='efectivo'||e.metodo_pago==='parcial'||Number(e.monto_efectivo)>0)&&!consignedFacIds.has(e.factura_id)).forEach(e=>{
-      var f=facMap[e.factura_id];if(!f)return;
+      var f=facMap[e.factura_id];if(!f||f.fecha<desdeSC)return;
       var rep=ensureRep(f.repartidor_id);if(!rep)return;
       var monto=Number(e.monto_efectivo)||Math.round((f.kg_facturados||0)*(f.precio_unitario||0));
       rep.sinConsignar.push({factura_id:f.id,consecutivo:f.consecutivo,fecha:f.fecha,cliente:f.clientes?.nombre||'',monto});
