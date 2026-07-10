@@ -626,7 +626,7 @@ async function recargarActual(){
     await loadDataAll();
   } else if(fecha){
     const [facturas, clientes, repartidores] = await Promise.all([
-      sbGet('facturas','select=id,consecutivo,fecha,estado,kg_facturados,kg_facturados_original,precio_unitario,sucursal,cliente_id,repartidor_id&fecha=eq.'+fecha+'&order=consecutivo&limit=5000'),
+      sbGet('facturas','select=id,consecutivo,fecha,estado,kg_facturados,kg_facturados_original,precio_unitario,sucursal,direccion,cliente_id,repartidor_id&fecha=eq.'+fecha+'&order=consecutivo&limit=5000'),
       sbGet('clientes','select=id,nombre&limit=1000'),
       sbGet('repartidores','select=id,nombre&limit=1000')
     ]);
@@ -642,7 +642,7 @@ async function recargarActual(){
 async function loadData(){
   showLoading(true);
   const [facturas, clientes, repartidores] = await Promise.all([
-    sbGet('facturas','select=id,consecutivo,fecha,estado,kg_facturados,kg_facturados_original,precio_unitario,sucursal,cliente_id,repartidor_id&order=fecha.desc,consecutivo.desc&limit=5000'),
+    sbGet('facturas','select=id,consecutivo,fecha,estado,kg_facturados,kg_facturados_original,precio_unitario,sucursal,direccion,cliente_id,repartidor_id&order=fecha.desc,consecutivo.desc&limit=5000'),
     sbGet('clientes','select=id,nombre&limit=1000'),
     sbGet('repartidores','select=id,nombre&limit=1000')
   ]);
@@ -697,7 +697,7 @@ function buildData(facturas, entregas, novedades, notas, consigs, consigFacts){
     return{
       idx,facturaId:f.id,entregaId:e.id||null,
       novedadId:n.id||null,
-      consecutivo:f.consecutivo,fecha:f.fecha,sucursal:f.sucursal||null,
+      consecutivo:f.consecutivo,fecha:f.fecha,sucursal:f.sucursal||null,direccion:f.direccion||null,
       hora:e.registrado_en?new Date(e.registrado_en).toTimeString().slice(0,5):null,
       cliente:f.clientes?.nombre||'-',repartidor:f.repartidores?.nombre||'-',
       kgFac:f.kg_facturados,kgFacOriginal:f.kg_facturados_original||null,kgRec:e.kg_recibidos??null,precio:f.precio_unitario,
@@ -1177,11 +1177,15 @@ function renderMonitor(){
       html+='<div class="monitor-pendientes">';
       html+='<div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);padding:10px 0 8px;font-weight:600">Pendientes de registro</div>';
       pend.forEach(function(r){
-        html+='<div class="monitor-row" onclick="openModal(DATA['+r.idx+'])">';
+        html+='<div class="monitor-row" onclick="openModal(DATA['+r.idx+'])" style="flex-wrap:wrap;align-items:flex-start;padding:10px 0">';
+        html+='<div style="display:flex;align-items:center;gap:12px;width:100%">';
         html+='<span class="monitor-consec">#'+r.consecutivo+'</span>';
         html+='<span style="font-size:11px;color:var(--text3);min-width:80px">'+r.fecha+'</span>';
         html+='<span class="monitor-cliente">'+r.cliente+'</span>';
         html+='<span class="monitor-rep">'+r.repartidor+'</span>';
+        html+='</div>';
+        if(r.sucursal&&r.sucursal!==r.cliente) html+='<div style="font-size:11px;color:var(--text2);padding-left:4px;margin-top:2px">🏢 '+r.sucursal+'</div>';
+        if(r.direccion) html+='<div style="font-size:11px;color:var(--text3);padding-left:4px;margin-top:1px">📍 '+r.direccion+'</div>';
         html+='</div>';
       });
       html+='</div>';
@@ -1582,7 +1586,7 @@ async function exportarExcel() {
     // Consultar Supabase directo con el rango de fechas
     showLoading(true);
     var H2={'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY};
-    var qs='select=id,consecutivo,fecha,estado,kg_facturados,precio_unitario,sucursal,cliente_id,repartidor_id&order=fecha.asc,consecutivo.asc&limit=10000';
+    var qs='select=id,consecutivo,fecha,estado,kg_facturados,precio_unitario,sucursal,direccion,cliente_id,repartidor_id&order=fecha.asc,consecutivo.asc&limit=10000';
     if(desde) qs+='&fecha=gte.'+desde;
     if(hasta) qs+='&fecha=lte.'+hasta;
     var [facsR,clsR,repsR]=await Promise.all([
@@ -1606,7 +1610,7 @@ async function exportarExcel() {
         cliente:cMap[f.cliente_id]||'-',repartidor:rMap[f.repartidor_id]||'-',
         kgFac:f.kg_facturados,kgRec:e.kg_recibidos??null,diff,metodo:e.metodo_pago||null,
         montoEfectivo:e.monto_efectivo||null,montoTransf:e.monto_transferencia||null,
-        obs:e.observaciones||'',sucursal:f.sucursal||null,hasNovedad:false,
+        obs:e.observaciones||'',sucursal:f.sucursal||null,direccion:f.direccion||null,hasNovedad:false,
         consigEstado:null,consigFecha:null,notaTipo:null,notaNum:null,notaEstado:null,notaPdf:null,
         fotoFactura:null,fotoComprobante:null};
     });
@@ -1624,6 +1628,8 @@ async function exportarExcel() {
     'Fecha': r.fecha,
     'Hora entrega': r.hora ?? '',
     'Cliente': r.cliente,
+    'Sucursal': r.sucursal ?? '',
+    'Dirección': r.direccion ?? '',
     'Repartidor': r.repartidor,
     'Origen': esPDV(r)?'Punto de venta':'Repartidor',
     'Cantidad facturada': r.kgFac,
@@ -1650,7 +1656,7 @@ async function exportarExcel() {
 
   // Ancho de columnas
   ws['!cols'] = [
-    {wch:18},{wch:12},{wch:35},{wch:18},{wch:14},{wch:14},
+    {wch:18},{wch:12},{wch:12},{wch:35},{wch:28},{wch:30},{wch:18},{wch:14},
     {wch:12},{wch:16},{wch:14},{wch:18},{wch:16},{wch:18},
     {wch:14},{wch:16},{wch:14},{wch:16},{wch:16},{wch:14},
     {wch:16},{wch:12},{wch:35},{wch:50},{wch:50}
