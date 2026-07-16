@@ -1,0 +1,36 @@
+#!/bin/sh
+# Valida sintaxis JS del index.html antes de cada push
+
+HTML="index.html"
+TMP=$(mktemp /tmp/check_XXXXXX.js)
+
+# Extraer bloque <script> principal (el último y más grande)
+node -e "
+const fs = require('fs');
+const html = fs.readFileSync('$HTML', 'utf8');
+const matches = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];
+if (!matches.length) { console.error('No se encontró bloque <script>'); process.exit(1); }
+// Tomar el bloque más largo (el principal)
+const js = matches.reduce((a,b) => a[1].length > b[1].length ? a : b)[1];
+fs.writeFileSync('$TMP', js);
+" 2>&1
+
+if [ $? -ne 0 ]; then
+  echo "❌ Error extrayendo JS de $HTML"
+  rm -f "$TMP"
+  exit 1
+fi
+
+node --check "$TMP" 2>&1
+STATUS=$?
+rm -f "$TMP"
+
+if [ $STATUS -ne 0 ]; then
+  echo ""
+  echo "❌ Push bloqueado: hay errores de sintaxis JavaScript en $HTML"
+  echo "   Corrígelos antes de volver a hacer push."
+  exit 1
+fi
+
+echo "✅ Sintaxis JS OK — push permitido"
+exit 0
