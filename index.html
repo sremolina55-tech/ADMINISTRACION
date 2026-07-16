@@ -219,6 +219,46 @@ td{padding:11px 14px;font-size:13px;}
 .m-fecha{font-size:11px;color:var(--text3);white-space:nowrap;}
 .m-suc{font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .m-dir{font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* ===== MÓDULO CARTERA ===== */
+.crt-upload-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;}
+.crt-drop{background:var(--bg2);border:2px dashed var(--border2);border-radius:var(--radius);padding:28px 16px;text-align:center;cursor:pointer;transition:.2s;}
+.crt-drop:hover,.crt-drop.drag-over{border-color:var(--rosa);background:var(--rosa-dim);}
+.crt-drop input{display:none;}
+.crt-drop .crt-icon{font-size:30px;margin-bottom:6px;}
+.crt-drop p{color:var(--text3);font-size:13px;}
+.crt-drop .crt-fname{margin-top:6px;font-weight:600;color:var(--rosa);font-size:12px;word-break:break-all;}
+.crt-banner{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:16px;display:none;}
+.crt-banner-row{display:flex;align-items:center;flex-wrap:wrap;gap:14px;}
+.crt-stat{text-align:center;min-width:72px;}
+.crt-stat-n{font-family:'Playfair Display',serif;font-size:26px;font-weight:500;color:var(--rosa);}
+.crt-stat-l{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);}
+.crt-actions{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.crt-actions label{font-size:12px;color:var(--text2);}
+.crt-actions input[type=number]{width:64px;padding:6px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;text-align:center;background:var(--bg);color:var(--text);font-family:var(--sans);outline:none;}
+.crt-cierre{background:var(--amber-dim);border:1px solid rgba(200,120,32,0.3);border-radius:var(--radius);padding:14px 18px;margin-bottom:14px;display:none;}
+.crt-cierre h3{color:var(--amber);font-size:14px;margin-bottom:6px;}
+.crt-cierre p{font-size:12px;color:var(--text2);line-height:1.6;}
+.crt-cierre label{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);margin-top:8px;cursor:pointer;}
+.crt-stats-bar{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:13px 18px;margin-bottom:14px;display:none;}
+.crt-stats-row{display:flex;gap:20px;flex-wrap:wrap;align-items:center;}
+.crt-si{display:flex;align-items:center;gap:6px;font-size:13px;}
+.crt-dot{width:9px;height:9px;border-radius:50%;}
+.crt-table-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:16px;display:none;}
+.crt-th{padding:11px 14px;font-size:11px;background:var(--bg3);text-align:left;text-transform:uppercase;letter-spacing:1px;color:var(--text3);border-bottom:2px solid var(--border);}
+.crt-tr{cursor:pointer;transition:background .1s;border-bottom:1px solid var(--border);}
+.crt-tr:hover{background:var(--bg3);}
+.crt-td{padding:10px 14px;font-size:13px;vertical-align:top;}
+.crt-detail-row{display:none;border-bottom:1px solid var(--border);}
+.crt-detail-row.open{display:table-row;}
+.crt-detail-panel{padding:14px 16px;background:var(--bg3);border-left:3px solid var(--rosa);}
+.crt-detail-table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px;}
+.crt-detail-table th{background:var(--rosa-dim);color:var(--rosa);padding:6px 10px;text-align:left;}
+.crt-detail-table td{padding:6px 10px;border-bottom:1px solid var(--border);}
+.crt-prog{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;margin-bottom:16px;display:none;}
+.crt-prog-bar-bg{background:var(--bg3);border-radius:8px;height:12px;overflow:hidden;margin:10px 0;}
+.crt-prog-bar-fill{height:100%;background:var(--rosa);transition:width .3s;border-radius:8px;}
+.crt-prog-log{max-height:160px;overflow-y:auto;font-size:11px;font-family:monospace;background:var(--bg3);padding:10px;border-radius:6px;margin-top:8px;}
 </style>
 </head>
 <body>
@@ -257,6 +297,8 @@ td{padding:11px 14px;font-size:13px;}
     <div class="nav-section" style="margin-top:4px">Accesos</div>
     <div class="nav-item" onclick="showPage('cargar',this)">&#8679; Cargar rutero</div>
     <div class="nav-item" onclick="showPage('clientes',this)">&#128101; Clientes</div>
+    <div class="nav-section" style="margin-top:4px">Finanzas</div>
+    <div class="nav-item" onclick="showPage('cartera',this)">&#128231; Cartera</div>
   </nav>
 </aside>
 
@@ -410,6 +452,99 @@ td{padding:11px 14px;font-size:13px;}
     <!-- CONSIGNACIONES -->
     <div class="page" id="page-consignaciones">
       <div id="cg-admin-view"><div style="padding:48px;text-align:center;color:var(--text3)">Cargando...</div></div>
+    </div>
+
+    <!-- CARTERA -->
+    <div class="page" id="page-cartera">
+      <!-- Upload -->
+      <div class="crt-upload-grid">
+        <div class="crt-drop" id="crt-dz1" onclick="document.getElementById('crt-file1').click()">
+          <input type="file" id="crt-file1" accept=".xlsx,.xls" onchange="crtHandleFile(1,this)">
+          <div class="crt-icon">&#128203;</div>
+          <p>Excel de <strong>Clientes</strong></p>
+          <p style="font-size:11px;margin-top:2px">CLIENTES_*.xlsx</p>
+          <div class="crt-fname" id="crt-fn1"></div>
+        </div>
+        <div class="crt-drop" id="crt-dz2" onclick="document.getElementById('crt-file2').click()">
+          <input type="file" id="crt-file2" accept=".xlsx,.xls" onchange="crtHandleFile(2,this)">
+          <div class="crt-icon">&#128202;</div>
+          <p>Excel de <strong>Cartera</strong></p>
+          <p style="font-size:11px;margin-top:2px">Informe de Vencimientos</p>
+          <div class="crt-fname" id="crt-fn2"></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:18px;align-items:center;">
+        <button class="btn btn-primary" id="crt-btn-analizar" onclick="crtAnalizar()" disabled>Analizar archivos</button>
+        <span id="crt-status" style="font-size:12px;color:var(--text3)"></span>
+      </div>
+
+      <!-- Cierre trimestral -->
+      <div class="crt-cierre" id="crt-cierre">
+        <h3 id="crt-cierre-titulo"></h3>
+        <p>Se detect&#243; un cierre trimestral. Los correos incluir&#225;n el mensaje de confirmaci&#243;n de saldos.</p>
+        <label><input type="checkbox" id="crt-chk-cierre" checked> Incluir mensaje de cierre en los correos</label>
+      </div>
+
+      <!-- Banner ciclo -->
+      <div class="crt-banner" id="crt-banner">
+        <div class="crt-banner-row">
+          <div class="crt-stat"><div class="crt-stat-n" id="crt-b-total">0</div><div class="crt-stat-l">Total</div></div>
+          <div class="crt-stat"><div class="crt-stat-n" style="color:var(--green)" id="crt-b-env">0</div><div class="crt-stat-l">Enviados</div></div>
+          <div class="crt-stat"><div class="crt-stat-n" style="color:var(--amber)" id="crt-b-pend">0</div><div class="crt-stat-l">Pendientes</div></div>
+          <div class="crt-actions">
+            <label>Tanda:</label>
+            <input type="number" id="crt-inp-tanda" value="90" min="1" max="500">
+            <button class="btn btn-ghost" style="font-size:12px" onclick="crtSelPendientes()">Seleccionar pendientes</button>
+            <button class="btn btn-ghost" style="font-size:12px;color:var(--red);border-color:var(--red-dim)" onclick="crtResetCiclo()">Nuevo ciclo</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="crt-stats-bar" id="crt-stats">
+        <div class="crt-stats-row">
+          <div class="crt-si"><span class="crt-dot" style="background:var(--rosa)"></span><strong id="crt-s-cl">0</strong>&nbsp;clientes</div>
+          <div class="crt-si"><span class="crt-dot" style="background:var(--red)"></span><strong id="crt-s-v">0</strong>&nbsp;vencidas</div>
+          <div class="crt-si"><span class="crt-dot" style="background:var(--amber)"></span><strong id="crt-s-p">0</strong>&nbsp;pr&#243;ximas</div>
+          <div class="crt-si"><span class="crt-dot" style="background:var(--green)"></span><strong id="crt-s-n">0</strong>&nbsp;no vencidas</div>
+          <div style="margin-left:auto;font-size:12px;color:var(--text3)">Corte: <strong id="crt-s-fecha"></strong></div>
+        </div>
+      </div>
+
+      <!-- Tabla -->
+      <div class="crt-table-wrap" id="crt-table-wrap">
+        <div style="padding:14px 18px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);">
+          <span class="section-title">Clientes con cartera pendiente</span>
+          <button class="btn btn-ghost" style="font-size:12px" onclick="crtToggleSelAll()">Sel. todos</button>
+          <button class="btn btn-primary" id="crt-btn-enviar" onclick="crtEnviar()">Enviar correos seleccionados</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th class="crt-th" style="width:34px"></th>
+              <th class="crt-th">Cliente</th>
+              <th class="crt-th">Email</th>
+              <th class="crt-th">Vendedor</th>
+              <th class="crt-th" style="text-align:center">Venc.</th>
+              <th class="crt-th" style="text-align:center">Pr&#243;x.</th>
+              <th class="crt-th" style="text-align:center">OK</th>
+              <th class="crt-th" style="text-align:right">Total</th>
+              <th class="crt-th" style="width:72px"></th>
+            </tr>
+          </thead>
+          <tbody id="crt-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- Progress -->
+      <div class="crt-prog" id="crt-prog">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <strong>Enviando correos...</strong>
+          <span id="crt-prog-cnt" style="font-size:12px;color:var(--text3)"></span>
+        </div>
+        <div class="crt-prog-bar-bg"><div class="crt-prog-bar-fill" id="crt-prog-fill" style="width:0%"></div></div>
+        <div class="crt-prog-log" id="crt-prog-log"></div>
+      </div>
     </div>
 
     <!-- CONSECUTIVOS -->
@@ -1514,7 +1649,7 @@ function openLightbox(url){
 }
 function closeLightbox(){document.getElementById('lightbox').classList.remove('open');}
 
-const PAGE_META={clientes:['Clientes CRM','Gesti&#243;n y exportaci&#243;n a Xirux'],dashboard:['Dashboard','Resumen del d&#237;a'],buscar:['Buscar factura','Consulta por consecutivo'],monitor:['Monitor de locales','Pendientes por punto'],novedades:['Novedades','Diferencias pendientes de gesti&#243;n'],consignaciones:['Consignaciones','Revisi&#243;n de bauchers del d&#237;a'],consecutivos:['Control de consecutivos','Verificaci&#243;n diaria'],cargar:['Cargar rutero','Importar facturas desde Excel']};
+const PAGE_META={clientes:['Clientes CRM','Gesti&#243;n y exportaci&#243;n a Xirux'],dashboard:['Dashboard','Resumen del d&#237;a'],buscar:['Buscar factura','Consulta por consecutivo'],monitor:['Monitor de locales','Pendientes por punto'],novedades:['Novedades','Diferencias pendientes de gesti&#243;n'],consignaciones:['Consignaciones','Revisi&#243;n de bauchers del d&#237;a'],consecutivos:['Control de consecutivos','Verificaci&#243;n diaria'],cargar:['Cargar rutero','Importar facturas desde Excel'],cartera:['Cartera','Recordatorios de pago — env&#237;o masivo por ciclo']};
 function showPage(id,el){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -1958,6 +2093,362 @@ async function saveClAdmin(id){
     showToastAdm(id?'Cliente actualizado ✓':'Cliente creado ✓');
     await renderClientes();
   }catch(e){showToastAdm('Error: '+e.message,'err');}
+}
+
+// ================================================
+// MÓDULO CARTERA
+// ================================================
+const CRT_EDGE = SUPABASE_URL + '/functions/v1/send-cartera-email';
+const CRT_CC   = 'cartera@grupolom.com';
+const CRT_LOGO = 'https://images.jumpseller.com/store/lomarosa/store/logo/LR_LogotipoEslogan_CMYK.png?1662998750';
+const CRT_DELAY= 2000;
+const CRT_LOG_KEY = 'cartera_enviados_log';
+const CRT_VENDEDORES = {
+  'padilla manga william dario':       'w.padilla@grupolom.com',
+  'pardo prada jorge alberto':         'j.pardo@grupolom.com',
+  'silvestre acosta angela lucia':     'a.silvestre@grupolom.com',
+  'gonzalez triana jennifer':          'comercial.lomarosa@gmail.com',
+  'de jesus oropeza yohn robinson':    'supervisortat@grupolom.com',
+  'rodriguez rodriguez wilson javier': 'j.rodriguez@grupolom.com',
+  'farfan ospina juan carlos':         'asesorcomercial@grupolom.com',
+  'pardo prada alfredo':               'j.pardo@grupolom.com',
+};
+
+let crtFileData={1:null,2:null}, crtClientes=[], crtFecha=null, crtCierre=null, crtEnviados=[];
+
+// Utils
+function crtNorm(s){return s?String(s).trim().toLowerCase():'';}
+function crtNormNit(s){if(!s)return null;const d=String(s).replace(/\D/g,'');return d||null;}
+function crtPeso(n){return'$'+Number(n).toLocaleString('es-CO',{maximumFractionDigits:0});}
+function crtSleep(ms){return new Promise(r=>setTimeout(r,ms));}
+function crtLog(msg,col='#94a3b8'){const el=document.getElementById('crt-prog-log');el.innerHTML+=`<div style="color:${col}">${msg}</div>`;el.scrollTop=el.scrollHeight;}
+function crtFindCol(headers,cands){const hn=headers.map(c=>crtNorm(c));for(const c of cands){const cn=crtNorm(c);const i=hn.findIndex(h=>h===cn||h.replace(/\s/g,'')=== cn.replace(/\s/g,'')||h.includes(cn));if(i>=0)return i;}return -1;}
+function crtFmtDate(d){if(!d)return'N/A';return`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;}
+function crtExcelDate(v){if(!v)return null;if(typeof v==='number'){const d=XLSX.SSF.parse_date_code(v);if(d)return new Date(d.y,d.m-1,d.d);}const d=new Date(v);return isNaN(d)?null:d;}
+
+// Log ciclo
+function crtLeerLog(){try{const r=localStorage.getItem(CRT_LOG_KEY);return r?JSON.parse(r):{ciclo:null,enviados:[]};}catch{return{ciclo:null,enviados:[]};}}
+function crtCicloActual(){const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;}
+function crtCargarLog(){const log=crtLeerLog();crtEnviados=log.ciclo===crtCicloActual()?(log.enviados||[]):[];}
+function crtGuardarLog(nuevos){const log=crtLeerLog();const ciclo=crtCicloActual();const base=log.ciclo===ciclo?log.enviados:[];const merged=[...new Set([...base,...nuevos])];localStorage.setItem(CRT_LOG_KEY,JSON.stringify({ciclo,enviados:merged}));crtEnviados=merged;}
+function crtResetCiclo(){if(!confirm('¿Reiniciar ciclo? Se borrarán los enviados registrados.'))return;localStorage.removeItem(CRT_LOG_KEY);crtEnviados=[];crtActBanner();crtRenderTabla();}
+
+// Drag & drop
+['crt-dz1','crt-dz2'].forEach(id=>{
+  const el=document.getElementById(id);
+  el.addEventListener('dragover',e=>{e.preventDefault();el.classList.add('drag-over');});
+  el.addEventListener('dragleave',()=>el.classList.remove('drag-over'));
+  el.addEventListener('drop',e=>{e.preventDefault();el.classList.remove('drag-over');const n=id==='crt-dz1'?1:2;const f=e.dataTransfer.files[0];if(f)crtHandleFileDrop(n,f);});
+});
+function crtHandleFile(n,inp){if(!inp.files[0])return;crtHandleFileDrop(n,inp.files[0]);}
+function crtHandleFileDrop(n,file){const r=new FileReader();r.onload=e=>{crtFileData[n]={name:file.name,data:e.target.result};document.getElementById('crt-fn'+n).textContent=file.name;if(crtFileData[1]&&crtFileData[2])document.getElementById('crt-btn-analizar').disabled=false;};r.readAsArrayBuffer(file);}
+
+// Parseo clientes
+function crtParsearClientes(ab){
+  const wb=XLSX.read(ab,{type:'array'});
+  const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:null});
+  let hdr=0;
+  if((rows[0]||[]).some(c=>c&&String(c).toLowerCase().includes('exported')))hdr=1;
+  const headers=(rows[hdr]||[]).map(c=>c==null?'':String(c));
+  const data=rows.slice(hdr+1);
+  const iNit=crtFindCol(headers,['Nit','NIT']);
+  const iT=crtFindCol(headers,['Tercero','Cliente','tercero','cliente']);
+  const iE=crtFindCol(headers,['Email','Correo cliente','Correo','email']);
+  const iV=crtFindCol(headers,['Vendedor','vendedor']);
+  const iC=crtFindCol(headers,['Cupo Asignado','Cupo','Cupo de crédito','Cupo credito']);
+  if(iT<0||iE<0)throw new Error('No se encontró columna Tercero/Email en el archivo de clientes.');
+  const dn={},di={};
+  for(const row of data){
+    const t=row[iT],e=row[iE];
+    if(!t||!e||!String(e).includes('@'))continue;
+    const nn=crtNorm(t);if(!nn||dn[nn])continue;
+    const nitClean=crtNormNit(iNit>=0&&row[iNit]?String(Math.round(Number(row[iNit])||0)||row[iNit]):null);
+    const vnNom=iV>=0&&row[iV]?String(row[iV]).trim():'N/A';
+    const vnEmail=CRT_VENDEDORES[crtNorm(vnNom)]||null;
+    const cupo=iC>=0&&row[iC]?parseFloat(row[iC])||0:0;
+    const entrada={cliente:String(t).trim(),correo_cliente:String(e).trim(),vendedor:vnNom,correo_vendedor:vnEmail,cupo};
+    dn[nn]=entrada;if(nitClean)di[nitClean]=entrada;
+  }
+  return{dn,di};
+}
+
+// Parseo fecha
+function crtDetectarFecha(rows){
+  for(let i=0;i<Math.min(15,rows.length);i++){
+    for(let j=0;j<(rows[i]||[]).length;j++){
+      const v=rows[i][j];if(!v)continue;
+      const s=String(v).trim().toLowerCase();
+      if(s.includes('fecha de corte')){
+        if(s.includes(':')){const part=String(v).split(':').slice(1).join(':').trim();const d=new Date(part);if(!isNaN(d))return d;}
+        const nv=rows[i][j+1];if(nv){const d=new Date(nv);if(!isNaN(d))return d;if(typeof nv==='number'){const p=XLSX.SSF.parse_date_code(nv);if(p)return new Date(p.y,p.m-1,p.d);}}
+      }
+    }
+  }
+  return new Date();
+}
+function crtDetectarCierre(f){
+  if(!f)return null;const mes=f.getMonth()+1,dia=f.getDate();
+  const m={3:'trimestral',6:'trimestral',9:'trimestral',12:'anual'};
+  if(m[mes]&&dia>=29)return{es_cierre:true,tipo:m[mes],mensaje_tipo:m[mes]==='anual'?'Cierre anual':'Cierre trimestral',fecha_formateada:`${String(dia).padStart(2,'0')}/${String(mes).padStart(2,'0')}/${f.getFullYear()}`};
+  return null;
+}
+
+// Parseo cartera nuevo formato
+function crtParsearNuevo(rows,dn,di){
+  crtFecha=crtDetectarFecha(rows);
+  let hdr=9;
+  for(let i=0;i<Math.min(20,rows.length);i++){if(rows[i]&&crtNorm(rows[i][0])==='cuenta'){hdr=i;break;}}
+  const headers=(rows[hdr]||[]).map(c=>c==null?'':String(c));
+  const iCuenta=crtFindCol(headers,['Cuenta','cuenta']);
+  const iDoc=crtFindCol(headers,['Documento','documento']);
+  const iFecha=crtFindCol(headers,['Fecha','Emision','Emisión']);
+  const iFV=crtFindCol(headers,['Fecha Vence','FechaVence','Vencimiento','Fecha Vencimiento']);
+  const iS=crtFindCol(headers,['Saldo','saldo']);
+  if(iCuenta<0||iDoc<0||iFV<0||iS<0)throw new Error('Columnas requeridas no encontradas en Informe de Vencimientos.');
+  const facts=[];let ci=null;const hoy=new Date();hoy.setHours(0,0,0,0);
+  for(let i=hdr+1;i<rows.length;i++){
+    const row=rows[i];if(!row)continue;
+    const cuenta=row[iCuenta];if(cuenta==null)continue;
+    const cs=String(cuenta).trim();
+    if(/NIT\./i.test(cs)){
+      const idx=cs.toUpperCase().indexOf('NIT.');
+      const nombre=cs.slice(0,idx).replace(/[-\s]+$/,'').trim();
+      const nitPart=cs.slice(idx+4).split(/[\s-]/)[0];
+      const nitClean=crtNormNit(nitPart);
+      const nn=crtNorm(nombre);
+      ci=(nitClean&&di[nitClean])?di[nitClean]:(dn[nn]||null);
+      continue;
+    }
+    if(!ci)continue;
+    const fvRaw=row[iFV];if(fvRaw&&String(fvRaw).toLowerCase().includes('total'))continue;
+    const doc=row[iDoc];if(!doc)continue;
+    const saldo=parseFloat(row[iS])||0;if(saldo<=0)continue;
+    const fVence=crtExcelDate(fvRaw);if(!fVence)continue;
+    fVence.setHours(0,0,0,0);
+    const dias=Math.round((fVence-hoy)/86400000);
+    const fEmis=crtExcelDate(iFecha>=0?row[iFecha]:null);
+    const estado=dias<0?'vencido':dias<=5?'proximo':'no_vencido';
+    facts.push({cliente_info:ci,numero_factura:String(doc),fecha_emision:crtFmtDate(fEmis),fecha_vencimiento:crtFmtDate(fVence),dias,saldo_numerico:saldo,saldo:crtPeso(saldo),estado});
+  }
+  return facts;
+}
+
+// Parseo cartera antiguo formato
+function crtParsearAntiguo(rows,dn,di){
+  crtFecha=new Date();
+  let hdr=11;
+  for(let i=0;i<Math.min(25,rows.length);i++){if(rows[i]&&rows[i].some(c=>c&&crtNorm(c).includes('nombre tercero'))){hdr=i;break;}}
+  const headers=(rows[hdr]||[]).map(c=>c==null?'':String(c));
+  const iN=crtFindCol(headers,['Nombre tercero','Nombretercero','Cliente']);
+  const iDoc=crtFindCol(headers,['Numero FAC','NumeroFAC','Factura','Numero Factura']);
+  const iEmis=crtFindCol(headers,['Emision','Emisión','Fecha Emision']);
+  const iVenc=crtFindCol(headers,['Vencimiento','Fecha Vencimiento']);
+  const iS=crtFindCol(headers,['Saldo','saldo']);
+  const iVend=crtFindCol(headers,['Vendedor','vendedor']);
+  if(iN<0||iDoc<0||iVenc<0||iS<0)throw new Error('Columnas faltantes en Cartera por edades.');
+  const facts=[];const hoy=new Date();hoy.setHours(0,0,0,0);
+  for(let i=hdr+1;i<rows.length;i++){
+    const row=rows[i];if(!row)continue;
+    const nombre=row[iN];if(!nombre)continue;
+    const info=dn[crtNorm(nombre)];if(!info)continue;
+    const saldo=parseFloat(row[iS])||0;if(saldo===0)continue;
+    const fVence=crtExcelDate(row[iVenc]);if(!fVence)continue;
+    fVence.setHours(0,0,0,0);
+    const dias=Math.round((fVence-hoy)/86400000);
+    const fEmis=crtExcelDate(iEmis>=0?row[iEmis]:null);
+    const estado=dias<0?'vencido':dias<=5?'proximo':'no_vencido';
+    let infoF=info;
+    if(iVend>=0&&row[iVend]){const cv=CRT_VENDEDORES[crtNorm(row[iVend])];if(cv)infoF={...info,correo_vendedor:cv,vendedor:String(row[iVend]).trim()};}
+    facts.push({cliente_info:infoF,numero_factura:String(row[iDoc]),fecha_emision:crtFmtDate(fEmis),fecha_vencimiento:crtFmtDate(fVence),dias,saldo_numerico:saldo,saldo:crtPeso(saldo),estado});
+  }
+  return facts;
+}
+
+function crtAgrupar(facts){
+  const map={};
+  for(const f of facts){
+    const info=f.cliente_info,key=info.correo_cliente;
+    if(!map[key])map[key]={cliente:info.cliente,correo_cliente:info.correo_cliente,vendedor:info.vendedor,correo_vendedor:info.correo_vendedor,cupo:info.cupo,facturas_vencidas:[],facturas_proximas:[],facturas_no_vencidas:[]};
+    const g=map[key];
+    if(f.estado==='vencido')g.facturas_vencidas.push(f);
+    else if(f.estado==='proximo')g.facturas_proximas.push(f);
+    else g.facturas_no_vencidas.push(f);
+  }
+  return Object.values(map).map(g=>{
+    const ts=[...g.facturas_vencidas,...g.facturas_proximas,...g.facturas_no_vencidas].reduce((s,f)=>s+f.saldo_numerico,0);
+    return{...g,total_saldo:ts,cupo_disponible:g.cupo-ts};
+  });
+}
+
+// Analizar
+async function crtAnalizar(){
+  const btn=document.getElementById('crt-btn-analizar');
+  btn.disabled=true;btn.textContent='Analizando...';
+  document.getElementById('crt-status').textContent='';
+  crtCargarLog();
+  try{
+    let dn,di,facts;
+    try{const p=crtParsearClientes(crtFileData[1].data);dn=p.dn;di=p.di;facts=crtParsearCartera(crtFileData[2].data,dn,di);}
+    catch{const p=crtParsearClientes(crtFileData[2].data);dn=p.dn;di=p.di;facts=crtParsearCartera(crtFileData[1].data,dn,di);}
+    crtClientes=crtAgrupar(facts);
+    crtCierre=crtDetectarCierre(crtFecha);
+    const cb=document.getElementById('crt-cierre');
+    if(crtCierre){document.getElementById('crt-cierre-titulo').textContent=`${crtCierre.mensaje_tipo} — ${crtCierre.fecha_formateada}`;cb.style.display='block';}
+    else{cb.style.display='none';}
+    let tv=0,tp=0,tn=0;
+    for(const c of crtClientes){tv+=c.facturas_vencidas.length;tp+=c.facturas_proximas.length;tn+=c.facturas_no_vencidas.length;}
+    document.getElementById('crt-s-cl').textContent=crtClientes.length;
+    document.getElementById('crt-s-v').textContent=tv;
+    document.getElementById('crt-s-p').textContent=tp;
+    document.getElementById('crt-s-n').textContent=tn;
+    document.getElementById('crt-s-fecha').textContent=crtFecha?crtFmtDate(crtFecha):'—';
+    document.getElementById('crt-stats').style.display='block';
+    crtActBanner();crtRenderTabla();
+    document.getElementById('crt-table-wrap').style.display='block';
+    document.getElementById('crt-banner').style.display='block';
+    document.getElementById('crt-status').textContent=`${crtClientes.length} clientes procesados.`;
+  }catch(e){alert('Error al analizar: '+e.message);}
+  btn.disabled=false;btn.textContent='Analizar archivos';
+}
+
+function crtParsearCartera(ab,dn,di){
+  const wb=XLSX.read(ab,{type:'array',cellDates:false});
+  const sheetName=wb.SheetNames.find(n=>n==='Informe de Vencimientos')||wb.SheetNames.find(n=>n==='Cartera por edades');
+  if(!sheetName)throw new Error('No se encontró hoja de cartera reconocida.');
+  const rows=XLSX.utils.sheet_to_json(wb.Sheets[sheetName],{header:1,defval:null});
+  return sheetName==='Informe de Vencimientos'?crtParsearNuevo(rows,dn,di):crtParsearAntiguo(rows,dn,di);
+}
+
+// Banner y tabla
+function crtActBanner(){
+  const total=crtClientes.length,env=crtClientes.filter(c=>crtEnviados.includes(c.correo_cliente)).length;
+  document.getElementById('crt-b-total').textContent=total;
+  document.getElementById('crt-b-env').textContent=env;
+  document.getElementById('crt-b-pend').textContent=total-env;
+}
+function crtSelPendientes(){
+  const n=parseInt(document.getElementById('crt-inp-tanda').value)||90;let count=0;
+  document.querySelectorAll('.crt-chk').forEach(chk=>{
+    chk.checked=false;if(chk.disabled)return;
+    const idx=parseInt(chk.dataset.idx);
+    if(!crtEnviados.includes(crtClientes[idx].correo_cliente)&&count<n){chk.checked=true;count++;}
+  });
+}
+function crtToggleSelAll(){
+  const chks=document.querySelectorAll('.crt-chk:not(:disabled)');
+  const all=[...chks].every(c=>c.checked);chks.forEach(c=>c.checked=!all);
+}
+
+function crtRenderTabla(){
+  const tbody=document.getElementById('crt-tbody');tbody.innerHTML='';
+  for(let i=0;i<crtClientes.length;i++){
+    const c=crtClientes[i];const yaEnv=crtEnviados.includes(c.correo_cliente);
+    const tv=c.facturas_vencidas.length,tp=c.facturas_proximas.length,tn=c.facturas_no_vencidas.length;
+    const trM=document.createElement('tr');trM.className='crt-tr';
+    trM.innerHTML=`
+      <td class="crt-td"><input type="checkbox" class="crt-chk" data-idx="${i}" ${yaEnv?'disabled':''}></td>
+      <td class="crt-td"><strong>${c.cliente}</strong></td>
+      <td class="crt-td" style="color:var(--text3);font-size:12px">${c.correo_cliente}</td>
+      <td class="crt-td" style="font-size:12px">${c.vendedor||'N/A'}</td>
+      <td class="crt-td" style="text-align:center">${tv?`<span class="badge red">${tv}</span>`:'—'}</td>
+      <td class="crt-td" style="text-align:center">${tp?`<span class="badge amber">${tp}</span>`:'—'}</td>
+      <td class="crt-td" style="text-align:center">${tn?`<span class="badge green">${tn}</span>`:'—'}</td>
+      <td class="crt-td" style="text-align:right;font-weight:600">${crtPeso(c.total_saldo)}</td>
+      <td class="crt-td">${yaEnv?'<span class="badge green">Enviado</span>':'<span style="font-size:11px;color:var(--text3)">▼ ver</span>'}</td>`;
+    const trD=document.createElement('tr');trD.className='crt-detail-row';
+    trD.innerHTML=`<td colspan="9"><div class="crt-detail-panel">${crtBuildDetail(c)}</div></td>`;
+    trM.addEventListener('click',e=>{if(e.target.type==='checkbox')return;const open=trD.classList.contains('open');document.querySelectorAll('.crt-detail-row.open').forEach(r=>r.classList.remove('open'));if(!open)trD.classList.add('open');});
+    tbody.appendChild(trM);tbody.appendChild(trD);
+  }
+}
+
+function crtBuildDetail(c){
+  const secs=[
+    {arr:c.facturas_vencidas,color:'var(--red)',t:'Vencidas',e:'🔴'},
+    {arr:c.facturas_proximas,color:'var(--amber)',t:'Próximas (≤5d)',e:'🟡'},
+    {arr:c.facturas_no_vencidas,color:'var(--green)',t:'No vencidas',e:'🟢'},
+  ];
+  let html=`<div style="font-size:12px;margin-bottom:10px"><strong>Cupo:</strong> ${crtPeso(c.cupo)} &nbsp;|&nbsp; <strong>Disponible:</strong> <span style="color:${c.cupo_disponible<0?'var(--red)':'var(--green)'}">${crtPeso(c.cupo_disponible)}</span> &nbsp;|&nbsp; <strong>Vendedor CC:</strong> ${c.correo_vendedor||'N/A'}</div>`;
+  for(const s of secs){
+    if(!s.arr.length)continue;
+    html+=`<p style="font-weight:700;color:${s.color};margin:10px 0 5px">${s.e} ${s.t} (${s.arr.length})</p><table class="crt-detail-table"><thead><tr><th>Factura</th><th>Emisión</th><th>Vencimiento</th><th>Días</th><th style="text-align:right">Saldo</th></tr></thead><tbody>`;
+    for(const f of s.arr)html+=`<tr><td>${f.numero_factura}</td><td>${f.fecha_emision}</td><td>${f.fecha_vencimiento}</td><td>${f.dias}</td><td style="text-align:right">${f.saldo}</td></tr>`;
+    html+='</tbody></table>';
+  }
+  return html;
+}
+
+// Generar HTML correo
+function crtGenHtml(c){
+  const fTit=crtFecha?crtFmtDate(crtFecha):crtFmtDate(new Date());
+  const tv=c.facturas_vencidas.length,tp=c.facturas_proximas.length,tn=c.facturas_no_vencidas.length,tf=tv+tp+tn;
+  const incCierre=crtCierre&&document.getElementById('crt-chk-cierre')?.checked;
+  let msgCierre='';
+  if(incCierre)msgCierre=`<div style="background:linear-gradient(135deg,#fef3c7,#fde68a);padding:25px;margin:20px 0 30px;border-radius:12px;border-left:5px solid #f59e0b"><h3 style="color:#92400e;margin:0 0 15px;font-size:20px">${crtCierre.mensaje_tipo} — ${crtCierre.fecha_formateada}</h3><p style="color:#78350f;margin:0 0 12px;line-height:1.7">Queremos agradecerte por la confianza y el trabajo conjunto durante este periodo. Valoramos profundamente nuestra relación comercial y el crecimiento que hemos construido contigo.</p><p style="color:#78350f;margin:0 0 12px;line-height:1.7">Como parte de nuestros procesos de control y cierre contable, estamos realizando la confirmación de saldos con nuestros clientes y aliados estratégicos.</p><p style="color:#78350f;margin:0;line-height:1.7">Agradecemos de antemano tu colaboración y quedamos atentos a cualquier inquietud.</p></div>`;
+  const buildTab=(facts,titulo,color,emoji)=>{
+    if(!facts.length)return'';
+    const filas=facts.map(f=>`<tr style="border-bottom:1px solid #e0e0e0"><td style="padding:10px;font-weight:bold">${f.numero_factura}</td><td style="padding:10px;text-align:center">${f.fecha_emision}</td><td style="padding:10px;text-align:center">${f.fecha_vencimiento}</td><td style="padding:10px;text-align:center">${f.dias} días</td><td style="padding:10px;text-align:right;font-weight:bold">${f.saldo}</td></tr>`).join('');
+    const sub=facts.reduce((s,f)=>s+f.saldo_numerico,0);
+    return`<div style="margin:30px 0"><h3 style="color:${color};border-bottom:3px solid ${color};padding-bottom:10px;margin-bottom:15px">${emoji} ${titulo} (${facts.length})</h3><table style="width:100%;border-collapse:collapse"><thead><tr style="background:${color};color:#fff"><th style="padding:12px;text-align:left">Factura</th><th style="padding:12px;text-align:center">Emisión</th><th style="padding:12px;text-align:center">Vencimiento</th><th style="padding:12px;text-align:center">Días</th><th style="padding:12px;text-align:right">Saldo</th></tr></thead><tbody>${filas}<tr style="background:#f8f9fa;font-weight:bold;border-top:2px solid ${color}"><td colspan="4" style="text-align:right;padding:12px">SUBTOTAL:</td><td style="text-align:right;padding:12px">${crtPeso(sub)}</td></tr></tbody></table></div>`;
+  };
+  const dispColor=c.cupo_disponible<0?'#dc2626':'#10b981';
+  const dispEmoji=c.cupo_disponible<0?'⚠️':'✅';
+  return`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><style>body{font-family:Arial,sans-serif;line-height:1.6;color:#333;max-width:900px;margin:0 auto;padding:20px}</style></head><body>
+<div style="background:#fff;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,.1)">
+<div style="text-align:center;padding:25px"><img src="${CRT_LOGO}" alt="Lomarosa" style="max-width:250px"></div>
+<div style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:30px;text-align:center;border-radius:10px 10px 0 0"><h1 style="margin:0;font-size:26px">Estado de Cuenta — ${fTit}</h1><p>Cliente: <strong>${c.cliente}</strong></p></div>
+<div style="padding:30px">${msgCierre}
+<p>Estimado Cliente <strong>${c.cliente}</strong>,</p>
+<p>A continuación presentamos el estado completo de sus facturas pendientes:</p>
+<div style="display:flex;justify-content:space-around;margin:20px 0;background:#f8f9fa;padding:20px;border-radius:8px;flex-wrap:wrap">
+<div style="text-align:center;margin:10px"><div style="font-size:32px;font-weight:bold;color:#667eea">${tf}</div><div>Total Facturas</div></div>
+<div style="text-align:center;margin:10px"><div style="font-size:32px;font-weight:bold;color:#dc2626">${tv}</div><div>🔴 Vencidas</div></div>
+<div style="text-align:center;margin:10px"><div style="font-size:32px;font-weight:bold;color:#f59e0b">${tp}</div><div>🟡 Próximas</div></div>
+<div style="text-align:center;margin:10px"><div style="font-size:32px;font-weight:bold;color:#10b981">${tn}</div><div>🟢 No Vencidas</div></div>
+<div style="text-align:center;margin:10px"><div style="font-size:32px;font-weight:bold;color:#dc2626">${crtPeso(c.total_saldo)}</div><div>💰 Total Cartera</div></div>
+<div style="text-align:center;margin:10px"><div style="font-size:32px;font-weight:bold;color:${dispColor}">${dispEmoji} ${crtPeso(c.cupo_disponible)}</div><div>Cupo Disponible</div></div>
+</div>
+${buildTab(c.facturas_vencidas,'FACTURAS VENCIDAS','#dc2626','🔴')}
+${buildTab(c.facturas_proximas,'FACTURAS PRÓXIMAS A VENCER (≤ 5 días)','#f59e0b','🟡')}
+${buildTab(c.facturas_no_vencidas,'FACTURAS NO VENCIDAS (> 5 días)','#10b981','🟢')}
+<div style="background:linear-gradient(135deg,#fef3c7,#fde68a);padding:20px;margin:30px 0;border-radius:8px;border-top:4px solid #667eea"><h3 style="margin:0 0 10px;text-align:center">TOTAL GENERAL</h3><p style="font-size:32px;font-weight:bold;text-align:center;margin:0;color:#667eea">${crtPeso(c.total_saldo)}</p><p style="text-align:center;margin:10px 0 0;font-size:14px;color:#666">Total de ${tf} facturas pendientes</p></div>
+<div style="background:#e3f2fd;padding:15px;margin:20px 0;border-left:4px solid #2196F3;border-radius:4px"><strong>👤 Vendedor asignado:</strong> ${c.vendedor||'N/A'}<br><strong>📧 Contacto:</strong> ${c.correo_vendedor||'No asignado'}<br><strong>⚠️ Dudas:</strong> Comuníquese con <a href="mailto:tesoreria@grupolom.com" style="color:#2196F3">tesoreria@grupolom.com</a></div>
+</div>
+<div style="background:#0f172a;color:#94a3b8;padding:25px;text-align:center;border-radius:0 0 10px 10px"><p><strong>Lomarosa</strong><br><em>Campo bien hecho, cerdos bien criados</em></p><hr style="border:1px solid #475569;margin:15px 0"><p style="font-size:11px">Mensaje automático. No responder directamente.</p></div>
+</div></body></html>`;
+}
+
+// Envío
+async function crtEnviar(){
+  const sel=[];
+  document.querySelectorAll('.crt-chk:checked').forEach(chk=>sel.push(crtClientes[parseInt(chk.dataset.idx)]));
+  if(!sel.length){alert('Selecciona al menos un cliente.');return;}
+  if(!confirm(`¿Enviar ${sel.length} correos?\nCC en todos: ${CRT_CC} + vendedor del cliente.`))return;
+  document.getElementById('crt-btn-enviar').disabled=true;
+  document.getElementById('crt-prog').style.display='block';
+  document.getElementById('crt-prog-log').innerHTML='';
+  const total=sel.length;let ok=0,fail=0;const exitosos=[];
+  for(let i=0;i<total;i++){
+    const c=sel[i];const pct=Math.round((i/total)*100);
+    document.getElementById('crt-prog-fill').style.width=pct+'%';
+    document.getElementById('crt-prog-cnt').textContent=`${i+1} / ${total}`;
+    const asunto=`Estado de Cuenta — ${crtFecha?crtFmtDate(crtFecha):crtFmtDate(new Date())} — ${c.cliente}`;
+    const html=crtGenHtml(c);
+    const cc=[CRT_CC];if(c.correo_vendedor&&c.correo_vendedor!=='N/A')cc.push(c.correo_vendedor);
+    try{
+      const res=await fetch(CRT_EDGE,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SUPABASE_KEY},body:JSON.stringify({to:c.correo_cliente,cc,subject:asunto,html})});
+      const data=await res.json();
+      if(res.ok&&!data.error){ok++;exitosos.push(c.correo_cliente);crtLog(`✅ [${i+1}/${total}] ${c.cliente} → ${c.correo_cliente}`,'#4a9e6a');}
+      else{fail++;crtLog(`❌ [${i+1}/${total}] ${c.cliente}: ${data.error||data.message||'Error'}','#e84050');}
+    }catch(e){fail++;crtLog(`❌ [${i+1}/${total}] ${c.cliente}: ${e.message}`,'#e84050');}
+    if(i<total-1)await crtSleep(CRT_DELAY);
+  }
+  document.getElementById('crt-prog-fill').style.width='100%';
+  document.getElementById('crt-prog-cnt').textContent=`${total} / ${total}`;
+  crtLog(`─── Completado: ${ok} enviados, ${fail} fallidos ───`,'var(--rosa)');
+  if(exitosos.length){crtGuardarLog(exitosos);crtActBanner();crtRenderTabla();}
+  document.getElementById('crt-btn-enviar').disabled=false;
+  showToast(`Cartera: ${ok} correos enviados, ${fail} fallidos.`);
 }
 
 async function exClAdmin(){
