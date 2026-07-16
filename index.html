@@ -2439,7 +2439,7 @@ async function crtEnviar(){
       const res=await fetch(CRT_EDGE,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SUPABASE_KEY},body:JSON.stringify({to:c.correo_cliente,cc,subject:asunto,html})});
       const data=await res.json();
       if(res.ok&&!data.error){ok++;exitosos.push(c.correo_cliente);crtLog(`✅ [${i+1}/${total}] ${c.cliente} → ${c.correo_cliente}`,'#4a9e6a');}
-      else{fail++;crtLog(`❌ [${i+1}/${total}] ${c.cliente}: ${data.error||data.message||'Error'}','#e84050');}
+      else{fail++;crtLog(`❌ [${i+1}/${total}] ${c.cliente}: ${data.error||data.message||'Error'}`, '#e84050');}
     }catch(e){fail++;crtLog(`❌ [${i+1}/${total}] ${c.cliente}: ${e.message}`,'#e84050');}
     if(i<total-1)await crtSleep(CRT_DELAY);
   }
