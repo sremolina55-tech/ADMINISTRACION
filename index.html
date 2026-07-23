@@ -707,6 +707,8 @@ async function sbPatch(t,f,b){await fetch(SUPABASE_URL+'/rest/v1/'+t+'?'+f,{meth
 
 let DATA=[], currentRow=null, sesionAdmin=null;
 
+function esAdmin(){return sesionAdmin&&sesionAdmin.rol==='admin';}
+
 async function doLogin(){
   const user=document.getElementById('login-user').value.trim().toUpperCase();
   const pass=document.getElementById('login-pass').value.trim();
@@ -722,7 +724,7 @@ async function doLogin(){
       return;
     }
     const u=data[0];
-    sesionAdmin={id:u.id,usuario:u.usuario,nombre:u.nombre};
+    sesionAdmin={id:u.id,usuario:u.usuario,nombre:u.nombre,rol:u.rol||'consulta'};
     sessionStorage.setItem('lom_admin_sesion',JSON.stringify(sesionAdmin));
     document.getElementById('login-error').classList.remove('show');
     mostrarAdmin();
@@ -1071,12 +1073,12 @@ function openModal(r){
   } else {
     notaForm.style.display='none';
   }
-  // Botón editar cantidad recibida
-  if(r.entregaId){
+  // Botón editar cantidad recibida — solo admin
+  if(r.entregaId&&esAdmin()){
     footer.innerHTML+=`<button class="btn btn-ghost" style="margin-left:auto" onclick="toggleEditCantidad()">&#9998; Cant. recibida</button>`;
   }
-  // Botón editar cantidad facturada
-  footer.innerHTML+=`<button class="btn btn-ghost" onclick="toggleEditFac()">&#9998; Cant. facturada</button>`;
+  // Botón editar cantidad facturada — solo admin
+  if(esAdmin()) footer.innerHTML+=`<button class="btn btn-ghost" onclick="toggleEditFac()">&#9998; Cant. facturada</button>`;
   // Botón editar número factura — solo para punto de venta
   if(esPDV(r)){
     footer.innerHTML+=`<button class="btn btn-ghost" onclick="toggleEditFactura()">&#9998; N&#176; factura</button>`;
@@ -1097,6 +1099,7 @@ function toggleEditFac(){
 }
 
 async function guardarCantidadFacEditada(){
+  if(!esAdmin()){showToast('Sin permiso para editar cantidades');return;}
   const r=currentRow;
   if(!r||!r.facturaId)return;
   const nueva=parseFloat(document.getElementById('edit-fac-input').value.replace(',','.'));
@@ -1175,6 +1178,7 @@ async function guardarFacturaEditada(){
 }
 
 async function guardarCantidadEditada(){
+  if(!esAdmin()){showToast('Sin permiso para editar cantidades');return;}
   const r=currentRow;
   if(!r||!r.entregaId)return;
   const nuevaKg=parseFloat(document.getElementById('edit-kg-input').value.replace(',','.'));
