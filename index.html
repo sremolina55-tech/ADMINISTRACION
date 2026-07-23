@@ -713,7 +713,7 @@ async function doLogin(){
   if(!user||!pass)return;
   showLoading(true);
   try{
-    const data=await sbGet('usuarios','usuario=eq.'+encodeURIComponent(user)+'&password=eq.'+encodeURIComponent(pass)+'&activo=eq.true&rol=eq.admin&select=id,usuario,nombre,punto,rol');
+    const data=await sbGet('usuarios','usuario=eq.'+encodeURIComponent(user)+'&password=eq.'+encodeURIComponent(pass)+'&activo=eq.true&rol=in.(admin,consulta)&select=id,usuario,nombre,punto,rol');
     showLoading(false);
     if(!data||!data.length){
       document.getElementById('login-error').textContent='Usuario o contrase\u00f1a incorrectos.';
