@@ -2003,27 +2003,39 @@ async function renderClientes(){
   document.getElementById('cl-list-view').style.display='';
   document.getElementById('cl-form-view').style.display='none';
   const sinERP=_clAdm.filter(c=>!c.xirux_sync).length;
+  const nuevosCount=_clAdm.filter(c=>c.fecha_ingreso&&c.fecha_ingreso>=getHoyColombia()).length;
   document.getElementById('cl-list-view').innerHTML=`
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
       <input id="cl-search" placeholder="Buscar por nombre, NIT, ciudad o vendedor..." oninput="filterClAdm()" style="flex:1;min-width:180px;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:var(--sans);font-size:13px;outline:none;background:var(--bg2)">
-      <button onclick="showClForm()" style="background:var(--rosa);color:#fff;border:none;border-radius:var(--radius-sm);padding:10px 18px;cursor:pointer;font-family:var(--sans);font-size:13px;font-weight:600;white-space:nowrap">+ Nuevo</button>
-      <button onclick="exClAdmin()" style="background:#5c6bc0;color:#fff;border:none;border-radius:var(--radius-sm);padding:10px 18px;cursor:pointer;font-family:var(--sans);font-size:13px;font-weight:600;white-space:nowrap">↓ Excel Xirux</button>
+      <button id="btn-cl-nuevos" onclick="toggleFiltNuevos()" style="background:none;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:9px 14px;cursor:pointer;font-family:var(--sans);font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap">Nuevos hoy <span style="background:var(--rosa);color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px">${nuevosCount}</span></button>
+      <button id="btn-cl-sinErp" onclick="toggleFiltSinErp()" style="background:none;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:9px 14px;cursor:pointer;font-family:var(--sans);font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap">Sin ERP <span style="background:var(--amber);color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px">${sinERP}</span></button>
+      <button onclick="showClForm()" style="background:var(--rosa);color:#fff;border:none;border-radius:var(--radius-sm);padding:10px 16px;cursor:pointer;font-family:var(--sans);font-size:13px;font-weight:600;white-space:nowrap">+ Nuevo</button>
+      <button onclick="exClAdmin()" style="background:#5c6bc0;color:#fff;border:none;border-radius:var(--radius-sm);padding:10px 14px;cursor:pointer;font-family:var(--sans);font-size:13px;font-weight:600;white-space:nowrap">↓ Excel Xirux</button>
     </div>
-    <div style="font-size:11px;color:var(--text3);margin-bottom:14px">${_clAdm.length} clientes &nbsp;·&nbsp; ${sinERP} pendientes ERP</div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:14px" id="cl-count-lbl">${_clAdm.length} clientes &nbsp;·&nbsp; ${sinERP} pendientes ERP</div>
     <div id="cl-cards"></div>`;
   filterClAdm();
 }
 
+let _clFiltNuevos=false,_clFiltSinErp=false;
+function toggleFiltNuevos(){_clFiltNuevos=!_clFiltNuevos;const b=document.getElementById('btn-cl-nuevos');if(b){b.style.background=_clFiltNuevos?'var(--rosa-dim)':'none';b.style.borderColor=_clFiltNuevos?'var(--rosa)':'var(--border)';b.style.color=_clFiltNuevos?'var(--rosa)':'var(--text2)';}filterClAdm();}
+function toggleFiltSinErp(){_clFiltSinErp=!_clFiltSinErp;const b=document.getElementById('btn-cl-sinErp');if(b){b.style.background=_clFiltSinErp?'var(--amber-dim)':'none';b.style.borderColor=_clFiltSinErp?'var(--amber)':'var(--border)';b.style.color=_clFiltSinErp?'var(--amber)':'var(--text2)';}filterClAdm();}
 function filterClAdm(){
   const q=(document.getElementById('cl-search')?.value||'').toLowerCase();
-  const f=_clAdm.filter(c=>(c.nombre||'').toLowerCase().includes(q)||(c.codigo||'').includes(q)||(c.ciudad||'').toLowerCase().includes(q)||(c.crm_vendedores?.nombre||'').toLowerCase().includes(q));
+  const hoy=getHoyColombia();
+  const f=_clAdm.filter(c=>{
+    if(_clFiltNuevos&&(!c.fecha_ingreso||c.fecha_ingreso<hoy))return false;
+    if(_clFiltSinErp&&c.xirux_sync)return false;
+    return !q||(c.nombre||'').toLowerCase().includes(q)||(c.codigo||'').includes(q)||(c.ciudad||'').toLowerCase().includes(q)||(c.crm_vendedores?.nombre||'').toLowerCase().includes(q);
+  });
+  const lbl=document.getElementById('cl-count-lbl');if(lbl)lbl.textContent=f.length+' cliente'+(f.length!==1?'s':'')+' mostrados';
   const el=document.getElementById('cl-cards');
   if(!el)return;
   const BTN='font-family:var(--sans);font-size:11px;border:1px solid var(--border);border-radius:6px;padding:5px 11px;cursor:pointer;background:var(--bg2);color:var(--text2)';
   el.innerHTML=f.slice(0,80).map(c=>{
     const contacto=[c.telefono?`📞 ${c.telefono}`:'',c.celular?`📱 ${c.celular}`:'',c.correo_electronico?`✉ ${c.correo_electronico}`:''].filter(Boolean).join(' &nbsp;·&nbsp; ');
     const erpBadge=c.xirux_sync?'<span style="background:var(--green-dim);color:var(--green);padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700">✓ ERP</span>':'<span style="background:var(--amber-dim);color:var(--amber);padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600">Pendiente</span>';
-    return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;transition:box-shadow 0.15s" onmouseenter="this.style.boxShadow='0 2px 10px rgba(232,69,110,.1)'" onmouseleave="this.style.boxShadow=''">
+    return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;transition:box-shadow 0.15s;cursor:pointer" onclick="showClDetail('${c.id}')" onmouseenter="this.style.boxShadow='0 2px 10px rgba(232,69,110,.1)'" onmouseleave="this.style.boxShadow=''">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px">
         <div style="flex:1;min-width:0">
           <div style="font-weight:600;font-size:14px">${c.nombre||''}</div>
@@ -2031,8 +2043,8 @@ function filterClAdm(){
         </div>
         <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
           ${erpBadge}
-          ${!c.xirux_sync?`<button onclick="subirClienteXiruxAdm('${c.id}')" style="${BTN};background:rgba(92,107,192,.07);color:#5c6bc0;border-color:#9fa8da" id="xbtn-${c.id}">⬆ Xirux</button>`:''}
-          <button onclick="showClForm('${c.id}')" style="${BTN}">✎ Editar</button>
+          ${!c.xirux_sync?`<button onclick="event.stopPropagation();subirClienteXiruxAdm('${c.id}')" style="${BTN};background:rgba(92,107,192,.07);color:#5c6bc0;border-color:#9fa8da" id="xbtn-${c.id}">⬆ Xirux</button>`:''}
+          <button onclick="event.stopPropagation();showClForm('${c.id}')" style="${BTN}">✎ Editar</button>
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 16px;font-size:12px;color:var(--text)">
@@ -2043,6 +2055,58 @@ function filterClAdm(){
       </div>
     </div>`;
   }).join('');
+}
+
+function showClDetail(id){
+  const c=_clAdm.find(x=>x.id===id);if(!c)return;
+  document.getElementById('cl-list-view').style.display='none';
+  const fv=document.getElementById('cl-form-view');fv.style.display='';
+  const erpBadge=c.xirux_sync?'<span style="background:var(--green-dim);color:var(--green);padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700">✓ ERP</span>':'<span style="background:var(--amber-dim);color:var(--amber);padding:3px 10px;border-radius:10px;font-size:11px;font-weight:600">Pendiente ERP</span>';
+  const SEC='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);font-weight:600;padding-bottom:6px;border-bottom:1px solid var(--border);margin-top:6px;margin-bottom:10px';
+  const ROW=(lbl,val)=>val?`<div style="display:flex;gap:8px;padding:7px 0;border-bottom:1px solid var(--bg3)"><span style="min-width:160px;font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.5px">${lbl}</span><span style="font-size:13px;color:var(--text)">${val}</span></div>`:'';
+  const condNombre=ADM_CONDPAGO.find(([v])=>v===c.xirux_condpago);
+  const ivaOpt=ADM_AGE_IVA.find(([v])=>v===c.xirux_agente_iva);
+  const icaOpt=ADM_AGE_ICA.find(([v])=>v===c.xirux_agente_ica);
+  fv.innerHTML=`<div style="max-width:640px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+      <button onclick="renderClientes()" style="background:none;border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 14px;cursor:pointer;font-family:var(--sans);font-size:13px">← Volver</button>
+      <strong style="font-size:16px;flex:1">${c.nombre||''}</strong>
+      ${!c.xirux_sync?`<button onclick="subirClienteXiruxAdm('${c.id}')" id="xirux-cl-btn" style="padding:9px 16px;background:#5c6bc0;color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;font-family:var(--sans);font-size:13px;font-weight:600">⬆ Subir a Xirux</button>`:''}
+      <button onclick="showClForm('${c.id}')" style="padding:9px 16px;background:var(--rosa);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;font-family:var(--sans);font-size:13px;font-weight:600">✎ Editar</button>
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">${erpBadge}<span style="font-size:12px;color:var(--text3)">Ingreso: ${c.fecha_ingreso||'—'}</span></div>
+
+      <div style="${SEC}">Identificación</div>
+      ${ROW('Tipo documento',c.tipo_documento==='31'?'31 — NIT':c.tipo_documento==='13'?'13 — Cédula':c.tipo_documento||'—')}
+      ${ROW('NIT / CC',c.codigo||'—')}
+      ${ROW('Nombre / Razón social',c.nombre||'—')}
+
+      <div style="${SEC}">Contacto</div>
+      ${ROW('Teléfono',c.telefono||'')}
+      ${ROW('Celular',c.celular||'')}
+      ${ROW('Correo',c.correo_electronico||'')}
+
+      <div style="${SEC}">Ubicación</div>
+      ${ROW('Dirección',c.direccion||'')}
+      ${ROW('Ciudad',c.ciudad||'')}
+      ${ROW('Barrio',c.barrio||'')}
+      ${ROW('Zona',c.zona||'')}
+
+      <div style="${SEC}">Clasificación</div>
+      ${ROW('Vendedor',c.crm_vendedores?.nombre||'')}
+      ${ROW('Clasificación A',c.clasificacion_a||'')}
+      ${ROW('Condición pago',condNombre?c.xirux_condpago+' — '+condNombre[1]:c.xirux_condpago||'')}
+
+      <div style="${SEC}">ERP — Xirux</div>
+      ${ROW('Agente IVA',ivaOpt?c.xirux_agente_iva+' — '+ivaOpt[1]:c.xirux_agente_iva||'')}
+      ${ROW('Agente ICA',icaOpt?c.xirux_agente_ica+' — '+icaOpt[1]:c.xirux_agente_ica||'')}
+      ${ROW('Actividad ICA (CIIU)',c.xirux_actividad_ica||'')}
+      ${ROW('Autoretenedor',c.xirux_autoretenedor||'N')}
+      ${ROW('Sujeto Ret. Fte',c.xirux_sujeto_retfte||'S')}
+      ${ROW('Sujeto CREE',c.xirux_sujeto_cree||'N')}
+    </div>
+  </div>`;
 }
 
 async function showClForm(id=''){
