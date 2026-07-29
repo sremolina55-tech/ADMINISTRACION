@@ -1984,6 +1984,12 @@ function resetUpload() {
 // ═══ CLIENTES CRM ═══
 const DIVIPOLA_ADM={"Bogotá D.C.":"11001","Bogotá":"11001","Soacha":"25754","Facatativá":"25269","Zipaquirá":"25899","Chía":"25175","Fusagasugá":"25290","Girardot":"25307","Madrid":"25430","Mosquera":"25473","Funza":"25286","Cajicá":"25126","Cota":"25214","La Calera":"25377","Tenjo":"25799","Sopó":"25758","Tocancipá":"25817","Sibaté":"25743","Medellín":"05001","Bello":"05088","Itagüí":"05360","Envigado":"05266","Barranquilla":"08001","Cartagena":"13001","Cali":"76001"};
 let _clAdm=[];
+const ADM_AGE_IVA=[['0001','Gran Contribuyente'],['0002','Responsable de IVA'],['0003','Régimen Simplificado'],['0004','No Responsable de IVA'],['0005','IVA No Residentes'],['0006','Régimen Simple'],['0007','Régimen Tributario Especial']];
+const ADM_AGE_ICA=[['0001','Gran Contribuyente'],['0002','Régimen Común'],['0003','Régimen Simplificado']];
+const ADM_CONDPAGO=[['1000','CONTADO'],['1001','15 DIAS'],['1002','20 DIAS'],['1003','30 DIAS'],['1004','8 DIAS'],['1005','5 DIAS'],['1007','7 DIAS'],['1008','1 DIA'],['1010','10 DIAS'],['1030','4 DIAS'],['1032','45 DIAS'],['1033','60 DIAS']];
+const EDGE_XIRUX_ADM=SUPABASE_URL+'/functions/v1/xirux-proxy';
+const XIRUX_JWT_ADM='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBxY2dpYnNkZXdycmJ1a2lidWJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3OTQyMDQsImV4cCI6MjA5MDM3MDIwNH0.7WnJydoru0E_aOGkyMGxPgZXTAEVmu4KQwqPPM-W14A';
+const XIRUX_TERCERO_BASE_ADM='https://web.cloudxirux.com:35619/app';
 
 function showToastAdm(msg,type='ok'){
   let t=document.getElementById('toast-adm');
@@ -1996,30 +2002,47 @@ async function renderClientes(){
   _clAdm=await sbGet('crm_clientes','select=*,crm_vendedores(nombre)&order=nombre')||[];
   document.getElementById('cl-list-view').style.display='';
   document.getElementById('cl-form-view').style.display='none';
+  const sinERP=_clAdm.filter(c=>!c.xirux_sync).length;
   document.getElementById('cl-list-view').innerHTML=`
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
-      <input id="cl-search" placeholder="Buscar por nombre o NIT..." oninput="filterClAdm()" style="flex:1;min-width:180px;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:var(--sans);font-size:13px;outline:none;background:var(--bg2)">
-      <button onclick="showClForm()" style="background:var(--rosa);color:#fff;border:none;border-radius:var(--radius-sm);padding:10px 18px;cursor:pointer;font-family:var(--sans);font-size:13px;font-weight:600;white-space:nowrap">+ Nuevo cliente</button>
-      <button onclick="exClAdmin()" style="background:#2d7a4f;color:#fff;border:none;border-radius:var(--radius-sm);padding:10px 18px;cursor:pointer;font-family:var(--sans);font-size:13px;font-weight:600;white-space:nowrap">↓ Archivo plano Xirux</button>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+      <input id="cl-search" placeholder="Buscar por nombre, NIT, ciudad o vendedor..." oninput="filterClAdm()" style="flex:1;min-width:180px;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:var(--sans);font-size:13px;outline:none;background:var(--bg2)">
+      <button onclick="showClForm()" style="background:var(--rosa);color:#fff;border:none;border-radius:var(--radius-sm);padding:10px 18px;cursor:pointer;font-family:var(--sans);font-size:13px;font-weight:600;white-space:nowrap">+ Nuevo</button>
+      <button onclick="exClAdmin()" style="background:#5c6bc0;color:#fff;border:none;border-radius:var(--radius-sm);padding:10px 18px;cursor:pointer;font-family:var(--sans);font-size:13px;font-weight:600;white-space:nowrap">↓ Excel Xirux</button>
     </div>
-    <div class="table-wrap"><table>
-      <thead><tr><th>Nombre</th><th>NIT / CC</th><th>Ciudad</th><th>Vendedor</th><th>ERP</th></tr></thead>
-      <tbody id="cl-tbody"></tbody>
-    </table></div>`;
+    <div style="font-size:11px;color:var(--text3);margin-bottom:14px">${_clAdm.length} clientes &nbsp;·&nbsp; ${sinERP} pendientes ERP</div>
+    <div id="cl-cards"></div>`;
   filterClAdm();
 }
 
 function filterClAdm(){
   const q=(document.getElementById('cl-search')?.value||'').toLowerCase();
-  const f=_clAdm.filter(c=>(c.nombre||'').toLowerCase().includes(q)||(c.codigo||'').includes(q));
-  document.getElementById('cl-tbody').innerHTML=f.slice(0,60).map(c=>`
-    <tr onclick="showClForm('${c.id}')" style="cursor:pointer">
-      <td style="font-weight:500">${c.nombre||''}</td>
-      <td style="color:var(--text2);font-size:12px">${c.codigo||''}</td>
-      <td style="color:var(--text2);font-size:12px">${c.ciudad||''}</td>
-      <td style="color:var(--text2);font-size:12px">${c.crm_vendedores?.nombre||''}</td>
-      <td>${c.xirux_sync?'<span style="color:var(--green);font-size:11px;font-weight:700">✓ ERP</span>':'<span style="color:var(--amber);font-size:11px">Pendiente</span>'}</td>
-    </tr>`).join('');
+  const f=_clAdm.filter(c=>(c.nombre||'').toLowerCase().includes(q)||(c.codigo||'').includes(q)||(c.ciudad||'').toLowerCase().includes(q)||(c.crm_vendedores?.nombre||'').toLowerCase().includes(q));
+  const el=document.getElementById('cl-cards');
+  if(!el)return;
+  const BTN='font-family:var(--sans);font-size:11px;border:1px solid var(--border);border-radius:6px;padding:5px 11px;cursor:pointer;background:var(--bg2);color:var(--text2)';
+  el.innerHTML=f.slice(0,80).map(c=>{
+    const contacto=[c.telefono?`📞 ${c.telefono}`:'',c.celular?`📱 ${c.celular}`:'',c.correo_electronico?`✉ ${c.correo_electronico}`:''].filter(Boolean).join(' &nbsp;·&nbsp; ');
+    const erpBadge=c.xirux_sync?'<span style="background:var(--green-dim);color:var(--green);padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700">✓ ERP</span>':'<span style="background:var(--amber-dim);color:var(--amber);padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600">Pendiente</span>';
+    return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;transition:box-shadow 0.15s" onmouseenter="this.style.boxShadow='0 2px 10px rgba(232,69,110,.1)'" onmouseleave="this.style.boxShadow=''">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:14px">${c.nombre||''}</div>
+          <div style="font-size:11px;color:var(--text3);font-family:monospace;margin-top:2px">${c.codigo||''}</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+          ${erpBadge}
+          ${!c.xirux_sync?`<button onclick="subirClienteXiruxAdm('${c.id}')" style="${BTN};background:rgba(92,107,192,.07);color:#5c6bc0;border-color:#9fa8da" id="xbtn-${c.id}">⬆ Xirux</button>`:''}
+          <button onclick="showClForm('${c.id}')" style="${BTN}">✎ Editar</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 16px;font-size:12px;color:var(--text)">
+        <div><span style="color:var(--text3)">Ciudad </span>${c.ciudad||'—'}</div>
+        <div><span style="color:var(--text3)">Vendedor </span>${c.crm_vendedores?.nombre||'—'}</div>
+        ${c.direccion?`<div style="grid-column:1/-1"><span style="color:var(--text3)">Dir. </span>${c.direccion}</div>`:''}
+        ${contacto?`<div style="grid-column:1/-1;margin-top:2px;color:var(--text2)">${contacto}</div>`:''}
+      </div>
+    </div>`;
+  }).join('');
 }
 
 async function showClForm(id=''){
@@ -2028,51 +2051,106 @@ async function showClForm(id=''){
   const vens=await sbGet('crm_vendedores','select=id,nombre&order=nombre')||[];
   const venOpts=vens.map(v=>`<option value="${v.id}">${v.nombre}</option>`).join('');
   const c=id?(_clAdm.find(x=>x.id===id)||{}):{};
-  fv.innerHTML=`<div style="max-width:600px">
+  const INP='width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:var(--sans);font-size:13px';
+  const SEL=INP+';background:var(--bg2)';
+  const LBL='font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600';
+  const SEC='font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);font-weight:600;padding-bottom:6px;border-bottom:1px solid var(--border);margin-top:6px';
+  const xiruxBanner=id&&c.xirux_sync?`<div style="background:var(--green-dim);border:1px solid rgba(74,158,106,.3);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--green);font-weight:600;margin-bottom:16px">✓ Cliente ya registrado en Xirux ERP</div>`:'';
+  fv.innerHTML=`<div style="max-width:640px">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
       <button onclick="renderClientes()" style="background:none;border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 14px;cursor:pointer;font-family:var(--sans);font-size:13px">← Volver</button>
       <strong style="font-size:16px">${id?'Editar cliente':'Nuevo cliente'}</strong>
     </div>
+    ${xiruxBanner}
     <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:24px;display:flex;flex-direction:column;gap:14px">
+
+      <div style="${SEC}">Identificación</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-        <div><div style="font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600">TIPO DOC *</div>
-          <select id="cf-tipo" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:var(--sans);font-size:13px;background:var(--bg2)">
-            <option value="13" ${c.tipo_documento==='13'?'selected':''}>CC</option>
-            <option value="31" ${c.tipo_documento==='31'?'selected':''}>NIT</option>
+        <div><div style="${LBL}">TIPO DOC *</div>
+          <select id="cf-tipo" style="${SEL}">
+            <option value="13" ${(c.tipo_documento||'13')==='13'?'selected':''}>13 — Cédula de Ciudadanía</option>
+            <option value="31" ${c.tipo_documento==='31'?'selected':''}>31 — NIT</option>
+            <option value="22" ${c.tipo_documento==='22'?'selected':''}>22 — Cédula de Extranjería</option>
+            <option value="41" ${c.tipo_documento==='41'?'selected':''}>41 — Pasaporte</option>
+            <option value="47" ${c.tipo_documento==='47'?'selected':''}>47 — PPT</option>
           </select></div>
-        <div><div style="font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600">NIT / CC *</div>
-          <input id="cf-codigo" value="${c.codigo||''}" placeholder="Ej: 900123456-1" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:var(--sans);font-size:13px"></div>
+        <div><div style="${LBL}">NIT / CC *</div>
+          <input id="cf-codigo" value="${c.codigo||''}" placeholder="Ej: 900123456-1" style="${INP}"></div>
       </div>
-      <div><div style="font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600">NOMBRE / RAZÓN SOCIAL *</div>
-        <input id="cf-nombre" value="${c.nombre||''}" placeholder="Nombre completo" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:var(--sans);font-size:13px"></div>
+      <div><div style="${LBL}">NOMBRE / RAZÓN SOCIAL *</div>
+        <input id="cf-nombre" value="${c.nombre||''}" placeholder="Nombre completo" style="${INP}"></div>
+
+      <div style="${SEC}">Contacto</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-        <div><div style="font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600">TELÉFONO</div>
-          <input id="cf-tel" value="${c.telefono||''}" placeholder="Fijo" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:var(--sans);font-size:13px"></div>
-        <div><div style="font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600">CELULAR</div>
-          <input id="cf-cel" value="${c.celular||''}" placeholder="Celular" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:var(--sans);font-size:13px"></div>
+        <div><div style="${LBL}">TELÉFONO</div><input id="cf-tel" value="${c.telefono||''}" placeholder="Fijo" style="${INP}"></div>
+        <div><div style="${LBL}">CELULAR</div><input id="cf-cel" value="${c.celular||''}" placeholder="Celular" style="${INP}"></div>
       </div>
-      <div><div style="font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600">CORREO *</div>
-        <input id="cf-email" value="${c.correo_electronico||''}" placeholder="correo@empresa.com" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:var(--sans);font-size:13px"></div>
-      <div><div style="font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600">DIRECCIÓN *</div>
-        <input id="cf-dir" value="${c.direccion||''}" placeholder="Dirección completa" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:var(--sans);font-size:13px"></div>
+      <div><div style="${LBL}">CORREO *</div>
+        <input id="cf-email" value="${c.correo_electronico||''}" placeholder="correo@empresa.com" style="${INP}"></div>
+
+      <div style="${SEC}">Ubicación</div>
+      <div><div style="${LBL}">DIRECCIÓN *</div>
+        <input id="cf-dir" value="${c.direccion||''}" placeholder="Dirección completa" style="${INP}"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-        <div><div style="font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600">CIUDAD *</div>
-          <input id="cf-ciudad" value="${c.ciudad||''}" placeholder="Bogotá D.C." list="cl-ciudades" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:var(--sans);font-size:13px">
+        <div><div style="${LBL}">CIUDAD *</div>
+          <input id="cf-ciudad" value="${c.ciudad||''}" placeholder="Bogotá D.C." list="cl-ciudades" style="${INP}">
           <datalist id="cl-ciudades">${Object.keys(DIVIPOLA_ADM).map(ci=>`<option value="${ci}">`).join('')}</datalist></div>
-        <div><div style="font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600">VENDEDOR</div>
-          <select id="cf-ven" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:var(--sans);font-size:13px;background:var(--bg2)">
-            <option value="">Sin asignar</option>${venOpts}
+        <div><div style="${LBL}">VENDEDOR</div>
+          <select id="cf-ven" style="${SEL}"><option value="">Sin asignar</option>${venOpts}</select></div>
+      </div>
+
+      <div style="${SEC}">Clasificación</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div><div style="${LBL}">CLASIFICACIÓN A *</div>
+          <select id="cf-clasa" style="${SEL}">
+            <option value="">Sel.</option>
+            <option value="1007" ${c.clasificacion_a==='1007'?'selected':''}>1007 — TAT Tiendas y Autoservicios</option>
+            <option value="1008" ${c.clasificacion_a==='1008'?'selected':''}>1008 — TAT Restaurantes</option>
+          </select></div>
+        <div><div style="${LBL}">CONDICIÓN PAGO</div>
+          <select id="cf-condpago" style="${SEL}">
+            <option value="">Sel.</option>
+            ${ADM_CONDPAGO.map(([v,l])=>`<option value="${v}" ${c.xirux_condpago===v?'selected':''}>${v} — ${l}</option>`).join('')}
           </select></div>
       </div>
+
+      <div style="${SEC}">ERP — Xirux</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-        <div><div style="font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600">CLASIFICACIÓN A *</div>
-          <input id="cf-clasa" value="${c.clasificacion_a||''}" placeholder="Ej: 1" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:var(--sans);font-size:13px"></div>
-        <div><div style="font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600">CONDICIÓN PAGO</div>
-          <input id="cf-condpago" value="${c.xirux_condpago||''}" placeholder="Ej: 1000" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:var(--sans);font-size:13px"></div>
+        <div><div style="${LBL}">AGENTE IVA</div>
+          <select id="cf-xiva" style="${SEL}">
+            <option value="">Sel.</option>
+            ${ADM_AGE_IVA.map(([v,l])=>`<option value="${v}" ${c.xirux_agente_iva===v?'selected':''}>${v} — ${l}</option>`).join('')}
+          </select></div>
+        <div><div style="${LBL}">AGENTE ICA</div>
+          <select id="cf-xica" style="${SEL}">
+            <option value="">Sel.</option>
+            ${ADM_AGE_ICA.map(([v,l])=>`<option value="${v}" ${c.xirux_agente_ica===v?'selected':''}>${v} — ${l}</option>`).join('')}
+          </select></div>
       </div>
-      <div style="display:flex;gap:10px;margin-top:6px">
-        <button onclick="renderClientes()" style="flex:1;padding:11px;border:1.5px solid var(--border);background:none;border-radius:var(--radius-sm);cursor:pointer;font-family:var(--sans);font-size:13px">Cancelar</button>
-        <button onclick="saveClAdmin('${id}')" style="flex:2;padding:11px;background:var(--rosa);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;font-family:var(--sans);font-size:13px;font-weight:600">${id?'Guardar cambios':'Crear cliente'}</button>
+      <div><div style="${LBL}">ACTIVIDAD ICA (código CIIU)</div>
+        <input id="cf-xact" value="${c.xirux_actividad_ica||''}" placeholder="Ej: 4722 — Comercio al por menor de carne" style="${INP}"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+        <div><div style="${LBL}">AUTORETENEDOR</div>
+          <select id="cf-xaut" style="${SEL}">
+            <option value="N" ${(c.xirux_autoretenedor||'N')==='N'?'selected':''}>N — No</option>
+            <option value="S" ${c.xirux_autoretenedor==='S'?'selected':''}>S — Sí</option>
+          </select></div>
+        <div><div style="${LBL}">SUJETO RET. FTE</div>
+          <select id="cf-xrft" style="${SEL}">
+            <option value="S" ${(c.xirux_sujeto_retfte||'S')==='S'?'selected':''}>S — Sí</option>
+            <option value="N" ${c.xirux_sujeto_retfte==='N'?'selected':''}>N — No</option>
+          </select></div>
+        <div><div style="${LBL}">SUJETO CREE</div>
+          <select id="cf-xcre" style="${SEL}">
+            <option value="N" ${(c.xirux_sujeto_cree||'N')==='N'?'selected':''}>N — No</option>
+            <option value="S" ${c.xirux_sujeto_cree==='S'?'selected':''}>S — Sí</option>
+          </select></div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:6px;flex-wrap:wrap">
+        <button onclick="renderClientes()" style="padding:11px 16px;border:1.5px solid var(--border);background:none;border-radius:var(--radius-sm);cursor:pointer;font-family:var(--sans);font-size:13px">Cancelar</button>
+        ${id?`<button id="xirux-cl-btn" onclick="subirClienteXiruxAdm('${id}')" style="padding:11px 18px;background:#5c6bc0;color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;font-family:var(--sans);font-size:13px;font-weight:600">⬆ Subir a Xirux</button>`:''}
+        <button onclick="saveClAdmin('${id}')" style="flex:1;padding:11px;background:var(--rosa);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;font-family:var(--sans);font-size:13px;font-weight:600">${id?'Guardar cambios':'Crear cliente'}</button>
       </div>
     </div>
   </div>`;
@@ -2085,21 +2163,92 @@ async function saveClAdmin(id){
   const email=document.getElementById('cf-email').value.trim();
   const dir=document.getElementById('cf-dir').value.trim();
   const ciudad=document.getElementById('cf-ciudad').value.trim();
-  const clasa=document.getElementById('cf-clasa').value.trim();
+  const clasa=document.getElementById('cf-clasa').value;
   if(!nombre||!codigo||!email||!dir||!ciudad||!clasa){showToastAdm('Completa todos los campos obligatorios (*)','err');return;}
   const payload={nombre,codigo,tipo_documento:document.getElementById('cf-tipo').value,
     telefono:document.getElementById('cf-tel').value.trim()||null,
     celular:document.getElementById('cf-cel').value.trim()||null,
     correo_electronico:email,direccion:dir,ciudad,clasificacion_a:clasa,
-    xirux_condpago:document.getElementById('cf-condpago').value.trim()||null,
-    vendedor_id:document.getElementById('cf-ven').value||null,
-    xirux_sync:false,fecha_ingreso:new Date().toISOString().split('T')[0]};
+    xirux_condpago:document.getElementById('cf-condpago').value||null,
+    xirux_agente_iva:document.getElementById('cf-xiva').value||null,
+    xirux_agente_ica:document.getElementById('cf-xica').value||null,
+    xirux_actividad_ica:document.getElementById('cf-xact').value.trim()||null,
+    xirux_autoretenedor:document.getElementById('cf-xaut').value||'N',
+    xirux_sujeto_retfte:document.getElementById('cf-xrft').value||'S',
+    xirux_sujeto_cree:document.getElementById('cf-xcre').value||'N',
+    vendedor_id:document.getElementById('cf-ven').value||null};
+  if(!id){payload.xirux_sync=false;payload.fecha_ingreso=new Date().toISOString().split('T')[0];}
   try{
     if(id){await sbPatch('crm_clientes','id=eq.'+id,payload);}
     else{const r=await sbPost('crm_clientes',payload);if(r.error)throw new Error(r.error);}
     showToastAdm(id?'Cliente actualizado ✓':'Cliente creado ✓');
     await renderClientes();
   }catch(e){showToastAdm('Error: '+e.message,'err');}
+}
+
+async function xiruxProxyAdm(endpoint,body,method='POST',format='json',xmlRoot='Root',baseUrl){
+  const payload={endpoint,method,body,format,xmlRoot};
+  if(baseUrl)payload.baseUrl=baseUrl;
+  const r=await fetch(EDGE_XIRUX_ADM,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+XIRUX_JWT_ADM},body:JSON.stringify(payload)});
+  return await r.json();
+}
+
+async function subirClienteXiruxAdm(id){
+  const btnCard=document.getElementById('xbtn-'+id);
+  const btnForm=document.getElementById('xirux-cl-btn');
+  const btn=btnForm||btnCard;
+  if(btn){btn.disabled=true;btn.textContent='Subiendo...';}
+  const cl=_clAdm.find(c=>c.id===id);
+  if(!cl){showToastAdm('Cliente no encontrado','err');if(btn){btn.disabled=false;btn.textContent='⬆ Xirux';}return;}
+  const numDoc=(cl.codigo||'').replace(/-\d+$/,'');
+  if(!numDoc){showToastAdm('Cliente sin NIT/CC','err');if(btn){btn.disabled=false;btn.textContent='⬆ Xirux';}return;}
+  if(!cl.direccion){showToastAdm('El cliente requiere dirección','err');if(btn){btn.disabled=false;btn.textContent='⬆ Xirux';}return;}
+  if(!cl.correo_electronico){showToastAdm('El cliente requiere correo electrónico','err');if(btn){btn.disabled=false;btn.textContent='⬆ Xirux';}return;}
+  if(!cl.telefono&&!cl.celular){showToastAdm('El cliente requiere al menos un teléfono o celular','err');if(btn){btn.disabled=false;btn.textContent='⬆ Xirux';}return;}
+  if(!cl.clasificacion_a){showToastAdm('Define la Clasificación A antes de subir a Xirux','err');if(btn){btn.disabled=false;btn.textContent='⬆ Xirux';}return;}
+  const tipoMap={'13':'CC','31':'NI','22':'CE','41':'PA','47':'PE','11':'RC','12':'TI','21':'CE'};
+  const tipoDoc=tipoMap[cl.tipo_documento]||'CC';
+  const esNIT=tipoDoc==='NI';
+  const ciudadCode=DIVIPOLA_ADM[cl.ciudad]||'11001';
+  const partes=(cl.nombre||'').trim().split(/\s+/);
+  const n=partes.length;
+  const body={
+    CodTercero:numDoc,FechaIngreso:getHoyColombia(),NumDoc:numDoc,TipoDoc:tipoDoc,
+    Nombre:cl.nombre,RazonSocial:cl.nombre,SectorDane:'1',
+    Direccion:cl.direccion,Ciudad:ciudadCode,Barrio:'000001',
+    Correo:cl.correo_electronico,ClaseA:String(cl.clasificacion_a),ViaDespacho:'0001',
+    CondicionPago:cl.xirux_condpago||'1010',AgeIva:cl.xirux_agente_iva||'0004',
+    ActIca:cl.xirux_actividad_ica||'0000',Autoretenedor:cl.xirux_autoretenedor||'N',
+    SujetoRetFte:cl.xirux_sujeto_retfte||'S',SujetoCree:cl.xirux_sujeto_cree||'N',
+    EsCliente:'S',EsVendedor:'N',NumEmpleados:'1'
+  };
+  if(cl.xirux_agente_ica)body.AgeIca=cl.xirux_agente_ica;
+  if(cl.telefono)body.Telefono=cl.telefono;
+  if(cl.celular)body.Celular=cl.celular;
+  if(!esNIT){
+    body.PriNombre=partes[0]||'';
+    if(n===1){body.PriApell=partes[0]||'';}
+    else if(n===2){body.PriApell=partes[1];}
+    else if(n===3){body.PriApell=partes[1];body.SegApell=partes[2];}
+    else{body.OtrNombre=partes[1];body.PriApell=partes[n-2];body.SegApell=partes[n-1];}
+  }
+  try{
+    const res=await xiruxProxyAdm('/api/Definiciones/Tercero',body,'POST','json','Root',XIRUX_TERCERO_BASE_ADM);
+    if(res.Valido===true){
+      await sbPatch('crm_clientes','id=eq.'+id,{xirux_sync:true});
+      const idx=_clAdm.findIndex(c=>c.id===id);if(idx>=0)_clAdm[idx].xirux_sync=true;
+      showToastAdm(cl.nombre+' subido a Xirux ✓');
+      if(btnForm)showClForm(id);else filterClAdm();
+    }else{
+      const detalle=res.Data?.[0]?.Detalle;
+      const msg=(res.Mensaje||'Error')+(detalle&&detalle!==res.Mensaje?' — '+detalle:'');
+      showToastAdm('Xirux: '+msg,'err');
+      if(btn){btn.disabled=false;btn.textContent=btnForm?'⬆ Subir a Xirux':'⬆ Xirux';}
+    }
+  }catch(e){
+    showToastAdm('Error: '+e.message,'err');
+    if(btn){btn.disabled=false;btn.textContent=btnForm?'⬆ Subir a Xirux':'⬆ Xirux';}
+  }
 }
 
 // ================================================
