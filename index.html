@@ -291,6 +291,7 @@ td{padding:11px 14px;font-size:13px;}
     <div class="nav-item active" onclick="showPage('dashboard',this)">&#9672; Dashboard</div>
     <div class="nav-item" onclick="showPage('buscar',this)">&#8857; Buscar factura</div>
     <div class="nav-item" onclick="showPage('monitor',this)">&#128204; Monitor locales <span class="nav-badge" id="badge-monitor" style="display:none">0</span></div>
+    <div class="nav-item" onclick="showPage('monitor',this)">&#9203; Pedidos aplazados <span class="nav-badge" id="badge-aplazados" style="display:none">0</span></div>
     <div class="nav-item" onclick="showPage('novedades',this)">&#9889; Novedades <span class="nav-badge" id="badge-novedades" style="display:none">0</span></div>
     <div class="nav-item" onclick="showPage('consignaciones',this)">&#128181; Consignaciones <span class="nav-badge" id="badge-consig" style="display:none">0</span></div>
     <div class="nav-item" onclick="showPage('consecutivos',this)">&#8801; Consecutivos</div>
@@ -1291,8 +1292,10 @@ function renderMonitor(){
     '<div class="stat-card amber"><div class="stat-label">Con novedad</div><div class="stat-value" style="color:var(--amber)">'+totalNov+'</div><div class="stat-meta">Requieren nota</div></div>';
 
   const badge=document.getElementById('badge-monitor');
+  const badgeApl=document.getElementById('badge-aplazados');
   const totalPendAll=DATA.filter(function(r){return r.kgRec==null&&r.metodo!=='devolucion';}).length;
   badge.textContent=totalPendAll;
+  if(badgeApl){badgeApl.textContent=totalPendAll;badgeApl.style.display=totalPendAll>0?'':'none';}
   badge.style.display=totalPendAll>0?'':'none';
 
   const localesEl=document.getElementById('monitor-locales');
