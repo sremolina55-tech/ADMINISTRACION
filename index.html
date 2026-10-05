@@ -1733,8 +1733,8 @@ async function exportarExcel() {
   if(desde||hasta){
     // Consultar Supabase directo con el rango de fechas
     showLoading(true);
-    var H2={'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY};
-    var qs='select=id,consecutivo,fecha,estado,kg_facturados,precio_unitario,sucursal,direccion,cliente_id,repartidor_id&order=fecha.asc,consecutivo.asc&limit=10000';
+    var H2={'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Range':'0-9999','Prefer':'count=none'};
+    var qs='select=id,consecutivo,fecha,estado,kg_facturados,precio_unitario,sucursal,direccion,cliente_id,repartidor_id&order=fecha.asc,consecutivo.asc';
     if(desde) qs+='&fecha=gte.'+desde;
     if(hasta) qs+='&fecha=lte.'+hasta;
     var [facsR,clsR,repsR]=await Promise.all([
